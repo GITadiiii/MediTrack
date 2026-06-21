@@ -1119,3 +1119,45 @@ export const deleteReport = (id: number) => {
     console.error('deleteReport error:', error);
   }
 };
+
+export const getMedicationLogsRange = (
+  userId: number,
+  startDate: string,
+  endDate: string
+): (MedicationLogDB & { name: string; dosage: string; unit: string })[] => {
+  if (Platform.OS === 'web') {
+    return webMedicationLogs
+      .filter(l => {
+        const logDate = l.scheduled_time.split(' ')[0];
+        return logDate >= startDate && logDate <= endDate;
+      })
+      .map(log => {
+        const m = webMedications.find(med => med.id === log.medication_id);
+        return {
+          ...log,
+          name: m ? m.name : 'Unknown Medicine',
+          dosage: m ? m.dosage : '',
+          unit: m ? m.unit : '',
+        };
+      })
+      .filter(log => {
+        const m = webMedications.find(med => med.id === log.medication_id);
+        return m ? m.user_id === userId : false;
+      });
+  }
+
+  const db = getDB();
+  try {
+    return db.getAllSync<any>(
+      `SELECT ml.*, m.name, m.dosage, m.unit 
+       FROM medication_logs ml
+       JOIN medications m ON ml.medication_id = m.id
+       WHERE m.user_id = ? AND date(ml.scheduled_time) BETWEEN date(?) AND date(?)
+       ORDER BY ml.scheduled_time DESC;`,
+      [userId, startDate, endDate]
+    );
+  } catch (error) {
+    console.error('getMedicationLogsRange error:', error);
+    return [];
+  }
+};
