@@ -14,6 +14,7 @@
       }
     },
     "android": {
+      "package": "com.gitadiiii.meditrack",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,6 +25,7 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "CAMERA",
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
         "RECEIVE_BOOT_COMPLETED",
@@ -36,7 +38,21 @@
     "plugins": [
       "expo-sqlite",
       "expo-sharing",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MediTrack needs photo access to let you upload prescriptions and symptom logs.",
+          "cameraPermission": "MediTrack needs camera access to let you take photos of prescriptions and symptom details."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "MediTrack needs location access to share your GPS coordinates with emergency contacts in case of an SOS event."
+        }
+      ]
     ]
   }
 }
