@@ -157,6 +157,18 @@ export const initDatabase = () => {
     );
   `);
 
+  // 10. Reports Table
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      report_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      generated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
   // Seed default data if users table is empty
   const count = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM users;');
   if (count && count.count === 0) {

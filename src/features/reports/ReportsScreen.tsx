@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import {
@@ -10,10 +10,16 @@ import {
   getSymptomsHistory,
   getDoctorVisits,
   getAdherenceStats,
+  addReport,
+  getReports,
+  deleteReport,
+  ReportDB,
   VitalDB,
   SymptomDB,
 } from '../../database/dbHelpers';
 import { generateAndShareReport, ReportData } from '../../services/pdfService';
+import { deleteLocalFile } from '../../services/fileService';
+import * as Sharing from 'expo-sharing';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 
@@ -24,6 +30,18 @@ export const ReportsScreen: React.FC = () => {
 
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   const [exporting, setExporting] = useState(false);
+  const [savedReports, setSavedReports] = useState<ReportDB[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      loadSavedReports();
+    }
+  }, [user]);
+
+  const loadSavedReports = () => {
+    const list = getReports(user?.id || 1);
+    setSavedReports(list);
+  };
 
   const handleExportReport = async () => {
     if (!user) return;
@@ -36,7 +54,7 @@ export const ReportsScreen: React.FC = () => {
       // 1. Fetch Patient Info & Medical Profile
       const mProfile = getMedicalProfile(user.id);
       if (!mProfile) {
-        Alert.alert('Incomplete Profile', 'Your medical profile has not been created yet.');
+        Alert.alert('Incomplete Profile', 'Please complete your medical profile first.');
         setExporting(false);
         return;
       }
@@ -89,6 +107,18 @@ export const ReportsScreen: React.FC = () => {
         return vDate >= cutoff;
       });
 
+      // Validation: If no data exists at all
+      if (
+        vitalsLogs.length === 0 &&
+        medicationList.length === 0 &&
+        symptomLogs.length === 0 &&
+        doctorVisits.length === 0
+      ) {
+        Alert.alert('No Data Found', 'No health data available for selected period.');
+        setExporting(false);
+        return;
+      }
+
       // Assemble full report dataset
       const reportData: ReportData = {
         patientName: user.name,
@@ -127,15 +157,31 @@ export const ReportsScreen: React.FC = () => {
           specialization: v.specialization,
           notes: v.notes || undefined,
           prescription_summary: v.prescription_summary || undefined,
+          follow_up_date: v.follow_up_date || undefined,
         })),
       };
 
-      // Generate PDF & trigger sharing
-      const success = await generateAndShareReport(reportData, dateRangeLabel);
-      if (success) {
-        Alert.alert('Report Shared', 'Your health summary PDF report was generated and exported successfully.');
+      // Generate PDF & save metadata
+      const filePath = await generateAndShareReport(reportData, dateRangeLabel);
+      if (filePath) {
+        const reportName = `Health Report - ${dateRangeLabel}`;
+        addReport(user.id, reportName, filePath);
+        loadSavedReports();
+
+        Alert.alert('Report Generated', 'Your health summary PDF report was compiled successfully.');
+
+        // For native mobile, trigger sharing overlay immediately
+        if (Platform.OS !== 'web' && filePath !== 'web_print') {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(filePath, {
+              mimeType: 'application/pdf',
+              dialogTitle: reportName,
+              UTI: 'com.adobe.pdf',
+            });
+          }
+        }
       } else {
-        Alert.alert('Export Failed', 'Unable to open PDF share dialog.');
+        Alert.alert('Export Failed', 'Unable to generate PDF report.');
       }
 
     } catch (e) {
@@ -144,6 +190,49 @@ export const ReportsScreen: React.FC = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleOpenReport = async (report: ReportDB) => {
+    if (Platform.OS === 'web' || report.file_path === 'web_print') {
+      Alert.alert('Web Print', 'Print/PDF view was triggered in your browser tab.');
+      return;
+    }
+
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(report.file_path, {
+          mimeType: 'application/pdf',
+          dialogTitle: report.report_name,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('Unavailable', 'Sharing is not available on this platform.');
+      }
+    } catch (e) {
+      console.error('Error opening report:', e);
+      Alert.alert('Error', 'Could not open the report file.');
+    }
+  };
+
+  const handleDeleteReport = (report: ReportDB) => {
+    Alert.alert(
+      'Delete Report',
+      'Are you sure you want to delete this report from your history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            deleteReport(report.id);
+            if (Platform.OS !== 'web' && report.file_path !== 'web_print') {
+              await deleteLocalFile(report.file_path);
+            }
+            loadSavedReports();
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -241,13 +330,64 @@ export const ReportsScreen: React.FC = () => {
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
             <Text style={[styles.loaderText, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
-              Compiling clinical logs. Please wait...
+              Generating report...
             </Text>
           </View>
         ) : (
           <Button title="📄 Compile & Export PDF Report" onPress={handleExportReport} variant="primary" style={styles.exportBtn} />
         )}
       </View>
+
+      {/* Saved Reports History */}
+      <Card style={[styles.historyCard, { marginBottom: 35 }]}>
+        <Text style={[styles.historyTitle, { color: theme.text, fontSize: 16 * fontScale }]}>
+          📂 Saved Reports History
+        </Text>
+        
+        {savedReports.length === 0 ? (
+          <Text style={[styles.emptyHistoryText, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+            No compiled clinical reports yet. Choose a date window above and click Compile to export.
+          </Text>
+        ) : (
+          savedReports.map((report) => (
+            <View
+              key={report.id}
+              style={[
+                styles.historyItem,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.card,
+                },
+              ]}
+            >
+              <View style={styles.itemInfo}>
+                <Text style={[styles.itemName, { color: theme.text, fontSize: 14 * fontScale }]} numberOfLines={1}>
+                  {report.report_name}
+                </Text>
+                <Text style={[styles.itemDate, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>
+                  Generated: {new Date(report.generated_date).toLocaleDateString()}
+                </Text>
+              </View>
+              <View style={styles.itemActions}>
+                <TouchableOpacity
+                  onPress={() => handleOpenReport(report)}
+                  style={[styles.actionBtn, { backgroundColor: theme.primary }]}
+                  accessibilityLabel={`Open ${report.report_name}`}
+                >
+                  <Text style={styles.actionBtnText}>Open</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDeleteReport(report)}
+                  style={[styles.actionBtn, styles.deleteBtn]}
+                  accessibilityLabel={`Delete ${report.report_name}`}
+                >
+                  <Text style={styles.actionBtnText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
     </ScrollView>
   );
 };
@@ -310,8 +450,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actionBlock: {
-    marginTop: 32,
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 20,
     alignItems: 'center',
   },
   loaderContainer: {
@@ -325,5 +465,58 @@ const styles = StyleSheet.create({
   exportBtn: {
     width: '100%',
     height: 52,
+  },
+  historyCard: {
+    padding: 16,
+    marginTop: 8,
+  },
+  historyTitle: {
+    fontWeight: 'bold',
+    marginBottom: 14,
+  },
+  emptyHistoryText: {
+    textAlign: 'center',
+    paddingVertical: 20,
+    fontStyle: 'italic',
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginVertical: 6,
+  },
+  itemInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  itemName: {
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  itemDate: {
+    fontWeight: '500',
+  },
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionBtn: {
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  actionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  deleteBtn: {
+    backgroundColor: '#EF4444',
   },
 });

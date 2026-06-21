@@ -109,6 +109,14 @@ export interface PrescriptionDB {
   uploaded_at: string;
 }
 
+export interface ReportDB {
+  id: number;
+  user_id: number;
+  report_name: string;
+  file_path: string;
+  generated_date: string;
+}
+
 // --- WEB MOCK DATABASE STORE (IN-MEMORY) ---
 
 let webUsers: UserDB[] = [
@@ -208,6 +216,7 @@ let webDoctorVisits: DoctorVisitDB[] = [
 ];
 
 let webPrescriptions: PrescriptionDB[] = [];
+let webReports: ReportDB[] = [];
 
 // Initialize Web vitals logs
 const initWebVitals = () => {
@@ -1031,6 +1040,7 @@ export const resetDatabase = () => {
       }
     ];
     webPrescriptions = [];
+    webReports = [];
     initWebVitals();
     return;
   }
@@ -1046,7 +1056,66 @@ export const resetDatabase = () => {
   db.execSync('DROP TABLE IF EXISTS doctor_visits;');
   db.execSync('DROP TABLE IF EXISTS prescriptions;');
   db.execSync('DROP TABLE IF EXISTS emergency_contacts;');
+  db.execSync('DROP TABLE IF EXISTS reports;');
   
   // Re-initialize and seed
   initDatabase();
+};
+
+export const addReport = (userId: number, reportName: string, filePath: string): number => {
+  const dateStr = new Date().toISOString();
+  if (Platform.OS === 'web') {
+    const newId = webReports.length + 1;
+    webReports.unshift({
+      id: newId,
+      user_id: userId,
+      report_name: reportName,
+      file_path: filePath,
+      generated_date: dateStr,
+    });
+    return newId;
+  }
+
+  const db = getDB();
+  try {
+    const result = db.runSync(
+      'INSERT INTO reports (user_id, report_name, file_path, generated_date) VALUES (?, ?, ?, ?);',
+      [userId, reportName, filePath, dateStr]
+    );
+    return result.lastInsertRowId || 0;
+  } catch (error) {
+    console.error('addReport error:', error);
+    return 0;
+  }
+};
+
+export const getReports = (userId: number): ReportDB[] => {
+  if (Platform.OS === 'web') {
+    return webReports.filter(r => r.user_id === userId);
+  }
+
+  const db = getDB();
+  try {
+    return db.getAllSync<ReportDB>(
+      'SELECT * FROM reports WHERE user_id = ? ORDER BY generated_date DESC;',
+      [userId]
+    );
+  } catch (error) {
+    console.error('getReports error:', error);
+    return [];
+  }
+};
+
+export const deleteReport = (id: number) => {
+  if (Platform.OS === 'web') {
+    webReports = webReports.filter(r => r.id !== id);
+    return;
+  }
+
+  const db = getDB();
+  try {
+    db.runSync('DELETE FROM reports WHERE id = ?;', [id]);
+  } catch (error) {
+    console.error('deleteReport error:', error);
+  }
 };
