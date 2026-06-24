@@ -39,6 +39,8 @@ interface AppState {
   setBiometricsEnabled: (enabled: boolean) => void;
   hasPin: boolean;
   setHasPin: (hasPin: boolean) => void;
+  autoBiometricsDisabled: boolean;
+  setAutoBiometricsDisabled: (disabled: boolean) => void;
 
   // Notifications center state
   notifications: AppNotification[];
@@ -50,8 +52,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   // Auth Session Initial State
   user: null,
-  setUser: (user) => set({ user }),
-  logout: () => set({ user: null, isLocked: false }),
+  setUser: (user) => set((state) => ({ user, autoBiometricsDisabled: user ? false : state.autoBiometricsDisabled })),
+  logout: () => set({ user: null, isLocked: false, autoBiometricsDisabled: true }),
 
   // Accessibility & UI settings Initial State
   themeMode: 'light',
@@ -68,6 +70,8 @@ export const useAppStore = create<AppState>((set) => ({
   setBiometricsEnabled: (biometricsEnabled) => set({ biometricsEnabled }),
   hasPin: false,
   setHasPin: (hasPin) => set({ hasPin }),
+  autoBiometricsDisabled: false,
+  setAutoBiometricsDisabled: (autoBiometricsDisabled) => set({ autoBiometricsDisabled }),
 
   // Notifications Initial State
   notifications: [],

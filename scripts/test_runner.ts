@@ -6,6 +6,7 @@ import {
   evaluateBloodSugar,
   evaluateSpO2,
   evaluateTemperature,
+  evaluateHeartRate,
   calculateAdherence,
   calculateHealthScore,
 } from '../src/utils/calculations';
@@ -70,13 +71,35 @@ assert(criticalSpO2.status === 'critical' && criticalSpO2.text === 'Critical Low
 // 4. Temperature Threshold Tests
 console.log('\nTesting Body Temperature thresholds...');
 const normalTemp = evaluateTemperature(36.5);
-assert(normalTemp.status === 'normal' && normalTemp.text === 'Normal', '36.5°C should be evaluated as Normal');
+assert(normalTemp.status === 'normal' && normalTemp.text === 'NORMAL', '36.5°C should be evaluated as NORMAL');
 
-const criticalTempHigh = evaluateTemperature(38.2);
-assert(criticalTempHigh.status === 'critical' && criticalTempHigh.text === 'Fever/Low Temp', '38.2°C should be evaluated as Critical High (Fever)');
+const criticalTempHigh = evaluateTemperature(39.0);
+assert(criticalTempHigh.status === 'critical' && criticalTempHigh.text === 'HIGH FEVER', '39.0°C should be evaluated as HIGH FEVER');
 
-const criticalTempLow = evaluateTemperature(35.8);
-assert(criticalTempLow.status === 'critical' && criticalTempLow.text === 'Fever/Low Temp', '35.8°C should be evaluated as Critical Low (Hypothermia)');
+const mildFeverTemp = evaluateTemperature(38.0);
+assert(mildFeverTemp.status === 'borderline' && mildFeverTemp.text === 'FEVER', '38.0°C should be evaluated as FEVER');
+
+const criticalTempLow = evaluateTemperature(32.0);
+assert(criticalTempLow.status === 'low_temp' && criticalTempLow.text === 'LOW BODY TEMPERATURE', '32.0°C should be evaluated as LOW BODY TEMPERATURE');
+
+
+// 4.5. Heart Rate Threshold Tests
+console.log('\nTesting Heart Rate thresholds...');
+const critLowHR = evaluateHeartRate(35);
+assert(critLowHR.status === 'critical' && critLowHR.text === 'CRITICAL LOW', '35 BPM should be evaluated as CRITICAL LOW');
+
+const lowHR = evaluateHeartRate(50);
+assert(lowHR.status === 'borderline' && lowHR.text === 'LOW', '50 BPM should be evaluated as LOW');
+
+const normalHR = evaluateHeartRate(80);
+assert(normalHR.status === 'normal' && normalHR.text === 'NORMAL', '80 BPM should be evaluated as NORMAL');
+
+const highHR = evaluateHeartRate(110);
+assert(highHR.status === 'borderline' && highHR.text === 'HIGH', '110 BPM should be evaluated as HIGH');
+
+const critHighHR = evaluateHeartRate(130);
+assert(critHighHR.status === 'critical' && critHighHR.text === 'CRITICAL HIGH', '130 BPM should be evaluated as CRITICAL HIGH');
+
 
 
 // 5. Adherence Calculations Tests

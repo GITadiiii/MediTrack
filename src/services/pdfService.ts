@@ -513,19 +513,27 @@ export const generateAndShareReport = async (data: ReportData, dateRangeLabel: s
             <div class="card-title">Patient Information</div>
             <div class="profile-row">
               <span class="profile-label">Full Name:</span>
-              <span class="profile-value">${data.patientName}</span>
+              <span class="profile-value">${data.patientName || 'Not specified'}</span>
             </div>
             <div class="profile-row">
               <span class="profile-label">Date of Birth:</span>
-              <span class="profile-value">${data.dob} (${data.age} yrs)</span>
+              <span class="profile-value">${data.dob && data.dob.trim() !== '' ? data.dob : 'Not specified'}${data.age && data.age !== 0 ? ` (${data.age} yrs)` : ''}</span>
             </div>
             <div class="profile-row">
               <span class="profile-label">Gender:</span>
-              <span class="profile-value">${data.gender}</span>
+              <span class="profile-value">${data.gender && data.gender.trim() !== '' ? data.gender : 'Not specified'}</span>
             </div>
             <div class="profile-row">
               <span class="profile-label">Blood Group:</span>
-              <span class="profile-value">${data.bloodGroup}</span>
+              <span class="profile-value">${data.bloodGroup && data.bloodGroup.trim() !== '' ? data.bloodGroup : 'Not specified'}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Height:</span>
+              <span class="profile-value">${data.height && data.height !== 0 ? `${data.height} cm` : 'Not specified'}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Weight:</span>
+              <span class="profile-value">${data.weight && data.weight !== 0 ? `${data.weight} kg` : 'Not specified'}</span>
             </div>
           </div>
 

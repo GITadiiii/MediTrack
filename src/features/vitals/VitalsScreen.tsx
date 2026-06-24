@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { HeartPulse, Calendar, Plus, Activity, Thermometer, Wind, Droplet, Scale } from 'lucide-react-native';
+
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import { getVitalsHistory, addVitalLog, VitalDB } from '../../database/dbHelpers';
@@ -8,6 +10,15 @@ import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { VitalBadge, VitalStatus } from '../../components/VitalBadge';
+import { PageHeader } from '../../components/PageHeader';
+import { IconContainer } from '../../components/IconContainer';
+import {
+  evaluateBloodPressure,
+  evaluateBloodSugar,
+  evaluateSpO2,
+  evaluateTemperature,
+  evaluateHeartRate,
+} from '../../utils/calculations';
 
 export const VitalsScreen: React.FC = () => {
   const isFocused = useIsFocused();
@@ -51,7 +62,6 @@ export const VitalsScreen: React.FC = () => {
   const handleSaveVitals = () => {
     if (!user) return;
 
-    // Check if at least one vital parameter is entered
     if (
       !systolic &&
       !diastolic &&
@@ -66,7 +76,6 @@ export const VitalsScreen: React.FC = () => {
       return;
     }
 
-    // Parse inputs
     const pSystolic = systolic ? parseFloat(systolic) : null;
     const pDiastolic = diastolic ? parseFloat(diastolic) : null;
     const pSugarFasting = sugarFasting ? parseFloat(sugarFasting) : null;
@@ -76,74 +85,72 @@ export const VitalsScreen: React.FC = () => {
     const pSpo2 = spo2 ? parseFloat(spo2) : null;
     const pBpm = heartRate ? parseFloat(heartRate) : null;
 
-    // Save log
-    addVitalLog({
-      user_id: user.id,
-      systolic: pSystolic,
-      diastolic: pDiastolic,
-      blood_sugar_fasting: pSugarFasting,
-      blood_sugar_post_meal: pSugarPostMeal,
-      temperature: pTemp,
-      weight: pWeight,
-      spo2: pSpo2,
-      heart_rate: pBpm,
-    });
+    try {
+      addVitalLog({
+        user_id: user.id,
+        systolic: pSystolic,
+        diastolic: pDiastolic,
+        blood_sugar_fasting: pSugarFasting,
+        blood_sugar_post_meal: pSugarPostMeal,
+        temperature: pTemp,
+        weight: pWeight,
+        spo2: pSpo2,
+        heart_rate: pBpm,
+      });
 
-    Alert.alert('Saved', 'Your vitals have been logged successfully.');
-    setModalVisible(false);
-    
-    // Clear form inputs
-    setSystolic('');
-    setDiastolic('');
-    setSugarFasting('');
-    setSugarPostMeal('');
-    setTemperature('');
-    setWeight('');
-    setSpo2('');
-    setHeartRate('');
-    
-    // Refresh history
-    loadVitals();
+      Alert.alert('Saved', 'Your vitals have been logged successfully.');
+      setModalVisible(false);
+      
+      setSystolic('');
+      setDiastolic('');
+      setSugarFasting('');
+      setSugarPostMeal('');
+      setTemperature('');
+      setWeight('');
+      setSpo2('');
+      setHeartRate('');
+      
+      loadVitals();
+    } catch (error) {
+      console.error('Vitals save error:', error);
+      Alert.alert('Error', 'Unable to save vitals log. Please verify all required fields.');
+    }
   };
 
-  // Threshold evaluations based on prompt requirements
   const getBpStatus = (sys: number | null, dia: number | null): { status: VitalStatus; text: string } | null => {
     if (sys === null || dia === null) return null;
-    // Critical: >=140 systolic OR >=90 diastolic
-    if (sys >= 140 || dia >= 90) return { status: 'critical', text: 'Critical High' };
-    // Borderline: 121-139 systolic OR 81-89 diastolic
-    if ((sys >= 121 && sys <= 139) || (dia >= 81 && dia <= 89)) return { status: 'borderline', text: 'Borderline' };
-    // Normal: 90-120 systolic AND 60-80 diastolic
-    if (sys >= 90 && sys <= 120 && dia >= 60 && dia <= 80) return { status: 'normal', text: 'Normal' };
-    return { status: 'borderline', text: 'Varying' };
+    return evaluateBloodPressure(sys, dia);
   };
 
   const getSugarStatus = (fasting: number | null): { status: VitalStatus; text: string } | null => {
     if (fasting === null) return null;
-    // Critical: >=126
-    if (fasting >= 126) return { status: 'critical', text: 'Critical High' };
-    // Borderline: 100-125
-    if (fasting >= 100 && fasting <= 125) return { status: 'borderline', text: 'Pre-diabetic' };
-    // Normal: <100
-    return { status: 'normal', text: 'Normal' };
+    return evaluateBloodSugar(fasting);
   };
 
   const getSpo2Status = (val: number | null): { status: VitalStatus; text: string } | null => {
     if (val === null) return null;
-    // Critical: below 90
-    if (val < 90) return { status: 'critical', text: 'Critical Low' };
-    // Borderline: 90-94
-    if (val >= 90 && val <= 94) return { status: 'borderline', text: 'Borderline' };
-    // Normal: 95-100
-    return { status: 'normal', text: 'Normal' };
+    return evaluateSpO2(val);
   };
 
   const getTempStatus = (val: number | null): { status: VitalStatus; text: string } | null => {
     if (val === null) return null;
-    // Critical: >=38 or <36.1
-    if (val >= 38 || val < 36.1) return { status: 'critical', text: 'Fever/Low Temp' };
-    // Normal: 36.1-37.2
-    return { status: 'normal', text: 'Normal' };
+    return evaluateTemperature(val);
+  };
+
+  const getHeartRateStatus = (val: number | null): { status: VitalStatus; text: string } | null => {
+    if (val === null) return null;
+    return evaluateHeartRate(val);
+  };
+
+  const formatDateTime = (timestamp: string) => {
+    try {
+      return new Date(timestamp).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch {
+      return timestamp;
+    }
   };
 
   if (loading) {
@@ -156,12 +163,13 @@ export const VitalsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Title Header with Add Button */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Vitals Log History</Text>
+      {/* Title Header with Add Button in one row */}
+      <View style={styles.headerRow}>
+        <PageHeader title="Vitals Log" icon={<HeartPulse color="#FFFFFF" size={20} />} />
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
-          style={[styles.addBtn, { backgroundColor: theme.primary, minHeight: 48, minWidth: 48 }]}
+          style={[styles.addBtn, { backgroundColor: theme.primary }]}
+          activeOpacity={0.8}
         >
           <Text style={styles.addBtnText}>+ Log Vitals</Text>
         </TouchableOpacity>
@@ -171,61 +179,70 @@ export const VitalsScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollList}>
         {vitalsList.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={{ fontSize: 40 }}>🩸</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 16 * fontScale, marginTop: 8 }}>
+            <HeartPulse size={44} color={theme.textSecondary} />
+            <Text style={{ color: theme.textSecondary, fontSize: 15 * fontScale, marginTop: 12, textAlign: 'center' }}>
               No vitals logged yet. Tap the button above to log your first record.
             </Text>
           </View>
         ) : (
           vitalsList.map((item) => {
             const bp = getBpStatus(item.systolic, item.diastolic);
-            const sugar = getSugarStatus(item.blood_sugar_fasting);
+            const sugarVal = item.blood_sugar_fasting || item.blood_sugar_post_meal;
+            const sugar = getSugarStatus(sugarVal);
             const oxygen = getSpo2Status(item.spo2);
             const temp = getTempStatus(item.temperature);
+            const hr = getHeartRateStatus(item.heart_rate);
 
             return (
               <Card key={item.id} style={styles.vitalCard}>
                 {/* Date Header */}
                 <View style={styles.cardHeader}>
+                  <Calendar size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />
                   <Text style={[styles.cardTime, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
-                    📅 {new Date(item.timestamp).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
+                    {formatDateTime(item.timestamp)}
                   </Text>
                 </View>
 
                 {/* Grid layout for parameters */}
                 <View style={styles.paramGrid}>
                   {/* BP */}
-                  {item.systolic && item.diastolic && bp && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>BP</Text>
+                  {item.systolic !== null && item.diastolic !== null && bp && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <Activity size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>BP</Text>
+                      </View>
                       <Text style={[styles.paramVal, { color: theme.text, fontSize: 16 * fontScale }]}>
-                        {item.systolic}/{item.diastolic}
-                        <Text style={{ fontSize: 10 }}> mmHg</Text>
+                        {item.systolic}/{item.diastolic} <Text style={{ fontSize: 10 }}>mmHg</Text>
                       </Text>
                       <VitalBadge status={bp.status} label={bp.text} />
                     </View>
                   )}
 
                   {/* Sugar */}
-                  {(item.blood_sugar_fasting || item.blood_sugar_post_meal) && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Sugar</Text>
-                      <Text style={[styles.paramVal, { color: theme.text, fontSize: 15 * fontScale }]}>
+                  {sugarVal !== null && sugar && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <Droplet size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Sugar</Text>
+                      </View>
+                      <Text style={[styles.paramVal, { color: theme.text, fontSize: 14 * fontScale, marginVertical: 4 }]}>
                         {item.blood_sugar_fasting ? `Fasting: ${item.blood_sugar_fasting}` : ''}
+                        {item.blood_sugar_fasting && item.blood_sugar_post_meal ? '\n' : ''}
                         {item.blood_sugar_post_meal ? `Post: ${item.blood_sugar_post_meal}` : ''}
                         <Text style={{ fontSize: 10 }}> mg/dL</Text>
                       </Text>
-                      {sugar && <VitalBadge status={sugar.status} label={sugar.text} />}
+                      <VitalBadge status={sugar.status} label={sugar.text} />
                     </View>
                   )}
 
                   {/* SpO2 */}
-                  {item.spo2 && oxygen && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>SpO2</Text>
+                  {item.spo2 !== null && oxygen && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <Wind size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>SpO2</Text>
+                      </View>
                       <Text style={[styles.paramVal, { color: theme.text, fontSize: 16 * fontScale }]}>
                         {item.spo2}%
                       </Text>
@@ -234,9 +251,12 @@ export const VitalsScreen: React.FC = () => {
                   )}
 
                   {/* Temp */}
-                  {item.temperature && temp && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Temp</Text>
+                  {item.temperature !== null && temp && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <Thermometer size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Temp</Text>
+                      </View>
                       <Text style={[styles.paramVal, { color: theme.text, fontSize: 16 * fontScale }]}>
                         {item.temperature}°C
                       </Text>
@@ -245,22 +265,30 @@ export const VitalsScreen: React.FC = () => {
                   )}
 
                   {/* HR */}
-                  {item.heart_rate && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>HR</Text>
+                  {item.heart_rate !== null && hr && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <HeartPulse size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>HR</Text>
+                      </View>
                       <Text style={[styles.paramVal, { color: theme.text, fontSize: 16 * fontScale }]}>
                         {item.heart_rate} <Text style={{ fontSize: 10 }}>BPM</Text>
                       </Text>
+                      <VitalBadge status={hr.status} label={hr.text} />
                     </View>
                   )}
 
                   {/* Weight */}
-                  {item.weight && (
-                    <View style={styles.paramBox}>
-                      <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Weight</Text>
+                  {item.weight !== null && (
+                    <View style={[styles.paramBox, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}>
+                      <View style={styles.paramHeader}>
+                        <Scale size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.paramName, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Weight</Text>
+                      </View>
                       <Text style={[styles.paramVal, { color: theme.text, fontSize: 16 * fontScale }]}>
                         {item.weight} <Text style={{ fontSize: 10 }}>kg</Text>
                       </Text>
+                      <VitalBadge status="normal" label="Logged" />
                     </View>
                   )}
                 </View>
@@ -379,17 +407,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontWeight: 'bold',
+    paddingRight: 16,
   },
   addBtn: {
     paddingHorizontal: 16,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -412,8 +438,15 @@ const styles = StyleSheet.create({
   vitalCard: {
     padding: 12,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     paddingBottom: 8,
@@ -429,12 +462,15 @@ const styles = StyleSheet.create({
   },
   paramBox: {
     width: '48%',
-    padding: 8,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#F8FAFC',
-    backgroundColor: '#FAFDFE',
-    borderRadius: 6,
-    marginVertical: 4,
+    borderRadius: 10,
+    marginVertical: 6,
+  },
+  paramHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   paramName: {
     fontWeight: 'bold',
@@ -466,5 +502,39 @@ const styles = StyleSheet.create({
   formRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  vitalCardFlat: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderRadius: 12,
+  },
+  vitalCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  vitalDetails: {
+    marginLeft: 12,
+  },
+  vitalLabel: {
+    fontWeight: 'bold',
+  },
+  vitalTime: {
+    marginTop: 2,
+  },
+  vitalCardRight: {
+    alignItems: 'flex-end',
+  },
+  vitalValText: {
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
 });

@@ -207,7 +207,7 @@ const seedDefaultData = (db: SQLite.SQLiteDatabase) => {
   db.runSync(
     `INSERT INTO emergency_contacts (user_id, name, relation, phone)
      VALUES (?, ?, ?, ?);`,
-    [userId, 'Sarah Doe (Daughter)', 'Child', '+15559876']
+    [userId, 'Sarah Doe (Daughter)', 'Child', '+14155552671']
   );
 
   const baseDate = new Date();

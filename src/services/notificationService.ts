@@ -75,12 +75,26 @@ export const scheduleMedicationReminders = async (
   unit: string,
   times: string[]
 ): Promise<string[]> => {
+  if (Platform.OS === 'web') return [];
   const triggerIds: string[] = [];
 
   for (const time of times) {
     const [hoursStr, minutesStr] = time.split(':');
     const hours = parseInt(hoursStr, 10);
     const minutes = parseInt(minutesStr, 10);
+
+    const triggerInput: Notifications.NotificationTriggerInput = Platform.OS === 'ios'
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          hour: hours,
+          minute: minutes,
+          repeats: true,
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+        };
 
     const triggerId = await Notifications.scheduleNotificationAsync({
       content: {
@@ -90,12 +104,7 @@ export const scheduleMedicationReminders = async (
         data: { medId, medName, dosage, unit, scheduledTime: time },
         sound: true,
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour: hours,
-        minute: minutes,
-        repeats: true,
-      },
+      trigger: triggerInput,
     });
 
     triggerIds.push(triggerId);
@@ -110,6 +119,7 @@ export const scheduleRefillAlert = async (
   medName: string,
   stockRemaining: number
 ) => {
+  if (Platform.OS === 'web') return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: `⚠️ Refill Alert: ${medName}`,
@@ -123,10 +133,12 @@ export const scheduleRefillAlert = async (
 
 // Cancel single scheduled reminder
 export const cancelReminder = async (id: string) => {
+  if (Platform.OS === 'web') return;
   await Notifications.cancelScheduledNotificationAsync(id);
 };
 
 // Cancel all notifications
 export const cancelAllReminders = async () => {
+  if (Platform.OS === 'web') return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 };

@@ -15,6 +15,8 @@ import {
 } from '../../database/dbHelpers';
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
+import { IconContainer } from '../../components/IconContainer';
+import { Pill, Activity, Stethoscope, FileText, Search, Calendar } from 'lucide-react-native';
 
 type SearchCategory = 'All' | 'Medicines' | 'Symptoms' | 'Visits' | 'Prescriptions';
 
@@ -62,7 +64,7 @@ export const SearchScreen: React.FC = () => {
       meds.forEach((m) => {
         items.push({
           id: m.id,
-          title: `💊 Medication: ${m.name}`,
+          title: m.name,
           subtitle: `${m.dosage} ${m.unit} - ${m.instructions || ''}`,
           category: 'Medicines',
           date: m.start_date,
@@ -76,7 +78,7 @@ export const SearchScreen: React.FC = () => {
       symptoms.forEach((s) => {
         items.push({
           id: s.id,
-          title: `🤒 Symptom: ${s.name}`,
+          title: s.name,
           subtitle: s.notes || 'No description notes',
           category: 'Symptoms',
           date: s.timestamp.split('T')[0],
@@ -91,7 +93,7 @@ export const SearchScreen: React.FC = () => {
       visits.forEach((v) => {
         items.push({
           id: v.id,
-          title: `🩺 Doctor Visit: ${v.doctor_name}`,
+          title: v.doctor_name,
           subtitle: `${v.specialization} at ${v.clinic_hospital}`,
           category: 'Visits',
           date: v.visit_date,
@@ -105,7 +107,7 @@ export const SearchScreen: React.FC = () => {
       prescriptions.forEach((p) => {
         items.push({
           id: p.id,
-          title: `📄 Prescription: ${p.file_name}`,
+          title: p.file_name,
           subtitle: `Doctor: ${p.doctor_tag || 'N/A'}`,
           category: 'Prescriptions',
           date: p.visit_date_tag || p.uploaded_at.split('T')[0],
@@ -204,42 +206,83 @@ export const SearchScreen: React.FC = () => {
 
         {filteredData.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={{ fontSize: 36 }}>🔍</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 16 * fontScale, marginTop: 8, textAlign: 'center' }}>
+            <IconContainer size={64} backgroundColor="#EFF6FF">
+              <Search size={32} color="#2563EB" />
+            </IconContainer>
+            <Text style={{ color: theme.textSecondary, fontSize: 16 * fontScale, marginTop: 16, textAlign: 'center' }}>
               No matches found. Try typing a different medical condition or medication name.
             </Text>
           </View>
         ) : (
-          filteredData.map((item) => (
-            <Card key={`${item.category}-${item.id}`} style={styles.resultCard}>
-              <View style={styles.resultRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.resultTitle, { color: theme.text, fontSize: 16 * fontScale }]}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.resultSubtitle, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
-                    {item.subtitle}
-                  </Text>
-                  
-                  {item.extraText ? (
-                    <Text style={[styles.resultExtra, { color: theme.primary, fontSize: 13 * fontScale }]}>
-                      {item.extraText}
-                    </Text>
-                  ) : null}
+          filteredData.map((item) => {
+            const getCategoryIcon = (cat: SearchCategory) => {
+              switch (cat) {
+                case 'Medicines':
+                  return <Pill size={18} color="#2563EB" />;
+                case 'Symptoms':
+                  return <Activity size={18} color="#EF4444" />;
+                case 'Visits':
+                  return <Stethoscope size={18} color="#10B981" />;
+                case 'Prescriptions':
+                  return <FileText size={18} color="#8B5CF6" />;
+                default:
+                  return <Search size={18} color="#64748B" />;
+              }
+            };
+            
+            const getCategoryIconBg = (cat: SearchCategory) => {
+              switch (cat) {
+                case 'Medicines':
+                  return '#EFF6FF';
+                case 'Symptoms':
+                  return '#FEE2E2';
+                case 'Visits':
+                  return '#D1FAE5';
+                case 'Prescriptions':
+                  return '#F5F3FF';
+                default:
+                  return '#F1F5F9';
+              }
+            };
 
-                  <Text style={[styles.resultDate, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>
-                    📅 Date: {item.date}
-                  </Text>
+            return (
+              <Card key={`${item.category}-${item.id}`} style={styles.resultCard}>
+                <View style={styles.resultRow}>
+                  <IconContainer size={38} backgroundColor={getCategoryIconBg(item.category)}>
+                    {getCategoryIcon(item.category)}
+                  </IconContainer>
+                  
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.resultTitle, { color: theme.text, fontSize: 16 * fontScale }]}>
+                      {item.title}
+                    </Text>
+                    <Text style={[styles.resultSubtitle, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+                      {item.subtitle}
+                    </Text>
+                    
+                    {item.extraText ? (
+                      <Text style={[styles.resultExtra, { color: theme.primary, fontSize: 13 * fontScale }]}>
+                        {item.extraText}
+                      </Text>
+                    ) : null}
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                      <Calendar size={13} color={theme.textSecondary} />
+                      <Text style={[styles.resultDate, { color: theme.textSecondary, fontSize: 12 * fontScale, marginLeft: 4 }]}>
+                        Date: {item.date}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={[styles.catBadge, { backgroundColor: theme.primaryLight, marginLeft: 8 }]}>
+                    <Text style={[styles.catBadgeText, { color: theme.primary, fontSize: 11 * fontScale }]}>
+                      {item.category}
+                    </Text>
+                  </View>
                 </View>
-                
-                <View style={[styles.catBadge, { backgroundColor: theme.primaryLight }]}>
-                  <Text style={[styles.catBadgeText, { color: theme.primary, fontSize: 11 * fontScale }]}>
-                    {item.category}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ))
+              </Card>
+            );
+          })
         )}
       </ScrollView>
     </View>

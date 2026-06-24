@@ -119,11 +119,30 @@ export interface ReportDB {
 
 // --- WEB MOCK DATABASE STORE (IN-MEMORY) ---
 
-let webUsers: UserDB[] = [
-  { id: 1, name: 'Johnathan Doe', email: 'john.doe@meditrack.com', phone: '+15550199', pin_hash: '1234', biometrics_enabled: 0 }
-];
+// --- WEB MOCK DATABASE STORE (IN-MEMORY & LOCAL STORAGE) ---
 
-let webMedicalProfiles: MedicalProfileDB[] = [
+const loadWebData = <T>(key: string, defaultValue: T): T => {
+  if (Platform.OS !== 'web') return defaultValue;
+  try {
+    const val = localStorage.getItem(key);
+    return val ? JSON.parse(val) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+export const saveWebData = (key: string, data: any) => {
+  if (Platform.OS !== 'web') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {}
+};
+
+let webUsers: UserDB[] = loadWebData('webUsers', [
+  { id: 1, name: 'Johnathan Doe', email: 'john.doe@meditrack.com', phone: '+15550199', pin_hash: '1234', biometrics_enabled: 0 }
+]);
+
+let webMedicalProfiles: MedicalProfileDB[] = loadWebData('webMedicalProfiles', [
   {
     id: 1,
     user_id: 1,
@@ -139,14 +158,15 @@ let webMedicalProfiles: MedicalProfileDB[] = [
     surgeries: JSON.stringify(['Appendectomy (1985)']),
     family_history: JSON.stringify(['Father: Heart Disease', 'Mother: Hypertension'])
   }
-];
+]);
 
-let webEmergencyContacts: EmergencyContactDB[] = [
-  { id: 1, user_id: 1, name: 'Sarah Doe (Daughter)', relation: 'Child', phone: '+15559876' }
-];
+let webEmergencyContacts: EmergencyContactDB[] = loadWebData('webEmergencyContacts', [
+  { id: 1, user_id: 1, name: 'Sarah Doe (Daughter)', relation: 'Child', phone: '+14155552671' }
+]);
 
-let webVitals: VitalDB[] = [];
-let webMedications: MedicationDB[] = [
+let webVitals: VitalDB[] = loadWebData('webVitals', []);
+
+let webMedications: MedicationDB[] = loadWebData('webMedications', [
   {
     id: 1,
     user_id: 1,
@@ -177,10 +197,11 @@ let webMedications: MedicationDB[] = [
     refill_alert_threshold: 7,
     reminders_enabled: 1
   }
-];
+]);
 
-let webMedicationLogs: MedicationLogDB[] = [];
-let webSymptoms: SymptomDB[] = [
+let webMedicationLogs: MedicationLogDB[] = loadWebData('webMedicationLogs', []);
+
+let webSymptoms: SymptomDB[] = loadWebData('webSymptoms', [
   {
     id: 1,
     user_id: 1,
@@ -199,9 +220,9 @@ let webSymptoms: SymptomDB[] = [
     photo_uri: null,
     timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
   }
-];
+]);
 
-let webDoctorVisits: DoctorVisitDB[] = [
+let webDoctorVisits: DoctorVisitDB[] = loadWebData('webDoctorVisits', [
   {
     id: 1,
     user_id: 1,
@@ -213,10 +234,10 @@ let webDoctorVisits: DoctorVisitDB[] = [
     prescription_summary: 'Metformin 500mg, Lisinopril 10mg continued.',
     follow_up_date: '2026-11-15'
   }
-];
+]);
 
-let webPrescriptions: PrescriptionDB[] = [];
-let webReports: ReportDB[] = [];
+let webPrescriptions: PrescriptionDB[] = loadWebData('webPrescriptions', []);
+let webReports: ReportDB[] = loadWebData('webReports', []);
 
 // Initialize Web vitals logs
 const initWebVitals = () => {
@@ -241,6 +262,7 @@ const initWebVitals = () => {
       timestamp: `${dateStr} 08:30:00`
     });
   }
+  saveWebData('webVitals', webVitals);
 };
 initWebVitals();
 
@@ -261,6 +283,7 @@ export const registerUser = (name: string, email: string, phone: string, pin: st
       biometrics_enabled: 0
     };
     webUsers.push(newUser);
+    saveWebData('webUsers', webUsers);
 
     webMedicalProfiles.push({
       id: newId,
@@ -277,6 +300,7 @@ export const registerUser = (name: string, email: string, phone: string, pin: st
       surgeries: '[]',
       family_history: '[]'
     });
+    saveWebData('webMedicalProfiles', webMedicalProfiles);
 
     return { id: newId, name, email: emailLower, phone };
   }
@@ -359,12 +383,29 @@ export const checkUserExists = (): UserDB | null => {
 export const updateBiometricsSetting = (userId: number, enabled: boolean) => {
   if (Platform.OS === 'web') {
     const user = webUsers.find(u => u.id === userId);
-    if (user) user.biometrics_enabled = enabled ? 1 : 0;
+    if (user) {
+      user.biometrics_enabled = enabled ? 1 : 0;
+      saveWebData('webUsers', webUsers);
+    }
     return;
   }
 
   const db = getDB();
   db.runSync('UPDATE users SET biometrics_enabled = ? WHERE id = ?;', [enabled ? 1 : 0, userId]);
+};
+
+export const updateUserBasicDetails = (userId: number, name: string) => {
+  if (Platform.OS === 'web') {
+    const u = webUsers.find(user => user.id === userId);
+    if (u) {
+      u.name = name;
+      saveWebData('webUsers', webUsers);
+    }
+    return;
+  }
+
+  const db = getDB();
+  db.runSync('UPDATE users SET name = ? WHERE id = ?;', [name, userId]);
 };
 
 export const resetUserPin = (email: string, phone: string, newPin: string): boolean => {
@@ -373,6 +414,7 @@ export const resetUserPin = (email: string, phone: string, newPin: string): bool
     const user = webUsers.find(u => u.email === emailLower && u.phone === phone);
     if (user) {
       user.pin_hash = newPin;
+      saveWebData('webUsers', webUsers);
       return true;
     }
     return false;
@@ -395,13 +437,41 @@ export const resetUserPin = (email: string, phone: string, newPin: string): bool
 
 export const getMedicalProfile = (userId: number): MedicalProfileDB | null => {
   if (Platform.OS === 'web') {
-    const p = webMedicalProfiles.find(profile => profile.user_id === userId);
+    let p = webMedicalProfiles.find(profile => profile.user_id === userId);
+    if (!p) {
+      p = {
+        id: webMedicalProfiles.length + 1,
+        user_id: userId,
+        age: 0,
+        gender: '',
+        dob: '',
+        blood_group: '',
+        height: 0,
+        weight: 0,
+        conditions: '[]',
+        allergies: '[]',
+        medications: '[]',
+        surgeries: '[]',
+        family_history: '[]'
+      };
+      webMedicalProfiles.push(p);
+      saveWebData('webMedicalProfiles', webMedicalProfiles);
+    }
     return p || null;
   }
 
   const db = getDB();
   try {
-    return db.getFirstSync<MedicalProfileDB>('SELECT * FROM medical_profiles WHERE user_id = ?;', [userId]);
+    let p = db.getFirstSync<MedicalProfileDB>('SELECT * FROM medical_profiles WHERE user_id = ?;', [userId]);
+    if (!p) {
+      db.runSync(
+        `INSERT INTO medical_profiles (user_id, age, gender, dob, blood_group, height, weight, conditions, allergies, medications, surgeries, family_history)
+         VALUES (?, 0, '', '', '', 0, 0, '[]', '[]', '[]', '[]', '[]');`,
+        [userId]
+      );
+      p = db.getFirstSync<MedicalProfileDB>('SELECT * FROM medical_profiles WHERE user_id = ?;', [userId]);
+    }
+    return p;
   } catch (error) {
     console.error('getMedicalProfile error:', error);
     return null;
@@ -416,6 +486,7 @@ export const updateMedicalProfile = (profile: Omit<MedicalProfileDB, 'id'>) => {
         ...webMedicalProfiles[index],
         ...profile
       };
+      saveWebData('webMedicalProfiles', webMedicalProfiles);
     }
     return;
   }
@@ -451,7 +522,7 @@ export const getEmergencyContact = (userId: number): EmergencyContactDB | null =
 
   const db = getDB();
   try {
-    return db.getFirstSync<EmergencyContactDB>('SELECT * FROM emergency_contacts WHERE user_id = ?;', [userId]);
+    return db.getFirstSync<EmergencyContactDB>('SELECT * FROM emergency_contacts WHERE user_id = ? LIMIT 1;', [userId]);
   } catch (error) {
     console.error('getEmergencyContact error:', error);
     return null;
@@ -472,6 +543,7 @@ export const saveEmergencyContact = (userId: number, name: string, relation: str
         phone
       });
     }
+    saveWebData('webEmergencyContacts', webEmergencyContacts);
     return;
   }
 
@@ -488,6 +560,69 @@ export const saveEmergencyContact = (userId: number, name: string, relation: str
       [userId, name, relation, phone]
     );
   }
+};
+
+export const getEmergencyContacts = (userId: number): EmergencyContactDB[] => {
+  if (Platform.OS === 'web') {
+    return webEmergencyContacts.filter(c => c.user_id === userId);
+  }
+
+  const db = getDB();
+  try {
+    return db.getAllSync<EmergencyContactDB>('SELECT * FROM emergency_contacts WHERE user_id = ?;', [userId]);
+  } catch (error) {
+    console.error('getEmergencyContacts error:', error);
+    return [];
+  }
+};
+
+export const addEmergencyContact = (userId: number, name: string, relation: string, phone: string) => {
+  if (Platform.OS === 'web') {
+    const newId = webEmergencyContacts.length > 0 ? Math.max(...webEmergencyContacts.map(c => c.id)) + 1 : 1;
+    webEmergencyContacts.push({
+      id: newId,
+      user_id: userId,
+      name,
+      relation,
+      phone
+    });
+    saveWebData('webEmergencyContacts', webEmergencyContacts);
+    return;
+  }
+
+  const db = getDB();
+  db.runSync(
+    'INSERT INTO emergency_contacts (user_id, name, relation, phone) VALUES (?, ?, ?, ?);',
+    [userId, name, relation, phone]
+  );
+};
+
+export const updateEmergencyContactDetail = (id: number, name: string, relation: string, phone: string) => {
+  if (Platform.OS === 'web') {
+    const index = webEmergencyContacts.findIndex(c => c.id === id);
+    if (index !== -1) {
+      webEmergencyContacts[index] = { ...webEmergencyContacts[index], name, relation, phone };
+      saveWebData('webEmergencyContacts', webEmergencyContacts);
+    }
+    return;
+  }
+
+  const db = getDB();
+  db.runSync(
+    'UPDATE emergency_contacts SET name = ?, relation = ?, phone = ? WHERE id = ?;',
+    [name, relation, phone, id]
+  );
+};
+
+export const deleteEmergencyContact = (id: number) => {
+  if (Platform.OS === 'web') {
+    webEmergencyContacts = webEmergencyContacts.filter(c => c.id !== id);
+    saveWebData('webEmergencyContacts', webEmergencyContacts);
+    return;
+  }
+
+  const db = getDB();
+  db.runSync('DELETE FROM emergency_contacts WHERE id = ?;', [id]);
 };
 
 // --- VITALS OPERATIONS ---

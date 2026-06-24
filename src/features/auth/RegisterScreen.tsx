@@ -13,7 +13,7 @@ import { Card } from '../../components/Card';
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(8, 'Phone number must be at least 8 digits'),
+  phone: z.string().regex(/^\+[0-9]{10,15}$/, 'Enter a valid phone number with country code.'),
   pin: z.string().length(4, 'PIN must be exactly 4 digits').regex(/^\d+$/, 'PIN must contain only numbers'),
   confirmPin: z.string().length(4, 'PIN must be exactly 4 digits'),
 }).refine((data) => data.pin === data.confirmPin, {

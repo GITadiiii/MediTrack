@@ -1,6 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator, Animated } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  Home as HomeIcon,
+  Bell,
+  HeartPulse,
+  Pill,
+  Activity,
+  FileText,
+  ShieldAlert,
+  Check,
+  X,
+  ChevronRight,
+  ClipboardList,
+  Stethoscope,
+  FolderOpen
+} from 'lucide-react-native';
+
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import {
@@ -20,6 +37,60 @@ import { getCurrentLocation } from '../../services/locationService';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { VitalBadge, VitalStatus } from '../../components/VitalBadge';
+import { IconContainer } from '../../components/IconContainer';
+import { CircularProgress } from '../../components/CircularProgress';
+
+interface QuickActionCardProps {
+  onPress: () => void;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  fontScale: number;
+}
+
+const QuickActionCard: React.FC<QuickActionCardProps> = ({ onPress, title, subtitle, icon, fontScale }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 4,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.gridCellWrapper}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <LinearGradient
+          colors={['#2563EB', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gridCellGradient}
+        >
+          <View style={styles.iconCircleContainer}>
+            {icon}
+          </View>
+          <Text style={[styles.gridCellTitle, { fontSize: 16 * fontScale }]}>{title}</Text>
+          <Text style={[styles.gridCellSubtitle, { fontSize: 12 * fontScale }]}>{subtitle}</Text>
+        </LinearGradient>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 interface DashboardScreenProps {
   navigation: any;
@@ -70,11 +141,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
       // 5. Generate Today's Medication Schedule Checklist
       const todayLogs = getMedicationLogs(user.id, 1); // Logs in past 24 hrs
       const schedule: typeof todaySchedule = [];
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const todayDay = days[new Date().getDay()];
 
       meds.forEach((med) => {
-        // Parse scheduled times
         let times: string[] = [];
         try {
           times = JSON.parse(med.frequency_details || '[]');
@@ -82,7 +150,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           times = ['08:00'];
         }
 
-        // For simple demo, generate today's doses for all once/twice daily meds
         times.forEach((time) => {
           const scheduledTimeStr = `${new Date().toISOString().split('T')[0]} ${time}`;
           const isLogged = todayLogs.find((l) => l.medication_id === med.id && l.scheduled_time === scheduledTimeStr);
@@ -96,20 +163,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         });
       });
 
-      // Sort schedule chronologically
       schedule.sort((a, b) => a.time.localeCompare(b.time));
       setTodaySchedule(schedule);
 
       // 6. Calculate Dynamic Health Score
       let score = 50; // Base score
       if (vitals.length > 0) {
-        // Vitals logged in past 24 hours
         const lastVitalDate = new Date(vitals[0].timestamp);
         const diffHrs = (new Date().getTime() - lastVitalDate.getTime()) / (1000 * 60 * 60);
         if (diffHrs <= 24) score += 20;
       }
       if (symptoms.length > 0) {
-        // Symptom diary checked recently
         const lastSymptomDate = new Date(symptoms[0].timestamp);
         const diffHrs = (new Date().getTime() - lastSymptomDate.getTime()) / (1000 * 60 * 60);
         if (diffHrs <= 24) score += 10;
@@ -131,15 +195,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     const scheduledTime = `${new Date().toISOString().split('T')[0]} ${time}`;
     logMedicationDose(medId, scheduledTime, status);
     Alert.alert('Medication Logged', `Marked dose scheduled at ${time} as ${status.toLowerCase()}.`);
-    loadDashboardData(); // Refresh UI
+    loadDashboardData();
   };
 
-  // SOS Emergency Trigger
   const handleSOS = async () => {
     if (!user) return;
     setSosLoading(true);
     try {
-      // 1. Get emergency contact
       const contact = getEmergencyContact(user.id);
       if (!contact) {
         Alert.alert(
@@ -150,35 +212,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         return;
       }
 
-      // 2. Fetch Medical Profile Info
       const profile = getMedicalProfile(user.id);
       let conditions = 'None';
-      let bloodGroup = 'Unknown';
+      let bloodGroup = 'Not specified';
       if (profile) {
-        bloodGroup = profile.blood_group || 'Unknown';
+        bloodGroup = profile.blood_group && profile.blood_group.trim() !== '' ? profile.blood_group : 'Not specified';
         try {
           const condArr = JSON.parse(profile.conditions || '[]');
           if (condArr.length > 0) conditions = condArr.join(', ');
         } catch {}
       }
 
-      // 3. Fetch GPS location
       const location = await getCurrentLocation();
       const mapsUrl = location ? location.mapsUrl : 'GPS signal unavailable';
 
-      // 4. Formulate SOS SMS pre-fill content
-      const message = `I need medical assistance.
+      const message = `I need medical assistance.\n\nName: ${user.name}\nBlood Group: ${bloodGroup}\nConditions: ${conditions}\n\nLocation:\n${mapsUrl}\n\nPlease contact me immediately.`;
 
-Name: ${user.name}
-Blood Group: ${bloodGroup}
-Conditions: ${conditions}
-
-Location:
-${mapsUrl}
-
-Please contact me immediately.`;
-
-      // 5. Open Share Dialog preloaded with message
       await Share.share({
         message,
         title: 'MediTrack Emergency SOS',
@@ -192,7 +241,6 @@ Please contact me immediately.`;
     }
   };
 
-  // Vitals Status color logic helpers
   const getBpStatus = (systolic: number | null, diastolic: number | null): { status: VitalStatus; badge: string } => {
     if (!systolic || !diastolic) return { status: 'normal', badge: 'Unknown' };
     if (systolic >= 140 || diastolic >= 90) return { status: 'critical', badge: 'High BP' };
@@ -215,6 +263,23 @@ Please contact me immediately.`;
     return { status: 'normal', badge: 'Normal' };
   };
 
+  const getHeartRateStatus = (val: number | null): { status: VitalStatus; badge: string } => {
+    if (val === null) return { status: 'normal', badge: 'Unknown' };
+    if (val < 40) return { status: 'critical', badge: 'CRITICAL LOW' };
+    if (val >= 40 && val <= 59) return { status: 'borderline', badge: 'LOW' };
+    if (val >= 60 && val <= 100) return { status: 'normal', badge: 'NORMAL' };
+    if (val >= 101 && val <= 120) return { status: 'borderline', badge: 'HIGH' };
+    return { status: 'critical', badge: 'CRITICAL HIGH' };
+  };
+
+  const getTempStatus = (val: number | null): { status: VitalStatus; badge: string } => {
+    if (val === null) return { status: 'normal', badge: 'Unknown' };
+    if (val < 35.0) return { status: 'low_temp', badge: 'LOW BODY TEMPERATURE' };
+    if (val >= 35.0 && val <= 37.5) return { status: 'normal', badge: 'NORMAL' };
+    if (val >= 37.6 && val <= 38.5) return { status: 'borderline', badge: 'FEVER' };
+    return { status: 'critical', badge: 'HIGH FEVER' };
+  };
+
   if (loading) {
     return (
       <View style={[styles.loading, { backgroundColor: theme.background }]}>
@@ -223,26 +288,32 @@ Please contact me immediately.`;
     );
   }
 
-  // Calculate vital color badges
   const bpDetails = lastVital ? getBpStatus(lastVital.systolic, lastVital.diastolic) : null;
   const sugarDetails = lastVital ? getSugarStatus(lastVital.blood_sugar_fasting, lastVital.blood_sugar_post_meal) : null;
   const spo2Details = lastVital ? getSpo2Status(lastVital.spo2) : null;
+  const hrDetails = lastVital ? getHeartRateStatus(lastVital.heart_rate) : null;
+  const tempDetails = lastVital ? getTempStatus(lastVital.temperature) : null;
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Top Welcome Bar */}
+      {/* Top Welcome Bar incorporating Custom Page Header style */}
       <View style={styles.headerBar}>
-        <View>
-          <Text style={[styles.welcomeText, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>Hello,</Text>
-          <Text style={[styles.nameText, { color: theme.text, fontSize: 22 * fontScale }]}>
-            {user?.name.split(' ')[0]}
-          </Text>
+        <View style={styles.headerLeft}>
+          <IconContainer size={44} backgroundColor="#2563EB">
+            <HomeIcon color="#FFFFFF" size={22} />
+          </IconContainer>
+          <View style={styles.welcomeTextGroup}>
+            <Text style={[styles.welcomeText, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Hello,</Text>
+            <Text style={[styles.nameText, { color: theme.text, fontSize: 20 * fontScale }]}>
+              {user?.name.split(' ')[0]}
+            </Text>
+          </View>
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('NotificationsCenter')}
           style={[styles.notifBadge, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}
         >
-          <Text style={{ fontSize: 20 }}>🔔</Text>
+          <Bell size={22} color={theme.text} />
           {notifications.filter((n) => !n.isRead).length > 0 && (
             <View style={[styles.badgeCount, { backgroundColor: theme.danger }]}>
               <Text style={styles.badgeText}>{notifications.filter((n) => !n.isRead).length}</Text>
@@ -251,12 +322,16 @@ Please contact me immediately.`;
         </TouchableOpacity>
       </View>
 
-      {/* Health Score Summary Gauge */}
-      <Card style={[styles.scoreHeroCard, { backgroundColor: theme.primary }]}>
+      {/* Health Score Summary Gauge with Gradient */}
+      <LinearGradient
+        colors={['#2563EB', '#3B82F6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.scoreHeroCard}
+      >
         <View style={styles.scoreRow}>
           <View style={styles.scoreGauge}>
-            <Text style={styles.scoreText}>{healthScore}</Text>
-            <Text style={styles.scoreSub}>Score</Text>
+            <CircularProgress progress={healthScore} size={76} strokeWidth={6} />
           </View>
           <View style={styles.scoreDetails}>
             <Text style={styles.scoreHeadline}>Overall Health Status</Text>
@@ -268,46 +343,46 @@ Please contact me immediately.`;
                 : 'Attention needed: Daily vitals or medication logging is incomplete.'}
             </Text>
             <View style={styles.adherenceBadge}>
-              <Text style={styles.adherenceLabel}>Adherence: {adherence.toFixed(0)}%</Text>
+              <Text style={styles.adherenceLabel}>Medication Adherence: {adherence.toFixed(0)}%</Text>
             </View>
           </View>
         </View>
-      </Card>
+      </LinearGradient>
 
-      {/* Quick Action Grid */}
+      {/* Redesigned Quick Action Cards */}
       <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Quick Actions</Text>
       <View style={styles.actionGrid}>
-        <TouchableOpacity
+        <QuickActionCard
           onPress={() => navigation.navigate('VitalsTab')}
-          style={[styles.gridCell, { backgroundColor: theme.card, borderColor: theme.border }]}
-        >
-          <Text style={styles.gridEmoji}>🩸</Text>
-          <Text style={[styles.gridLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Log Vitals</Text>
-        </TouchableOpacity>
+          title="Log Vitals"
+          subtitle="Track your daily health metrics"
+          icon={<HeartPulse size={28} color="#2563EB" />}
+          fontScale={fontScale}
+        />
 
-        <TouchableOpacity
+        <QuickActionCard
           onPress={() => navigation.navigate('MedicinesTab')}
-          style={[styles.gridCell, { backgroundColor: theme.card, borderColor: theme.border }]}
-        >
-          <Text style={styles.gridEmoji}>💊</Text>
-          <Text style={[styles.gridLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Add Medicine</Text>
-        </TouchableOpacity>
+          title="Add Medicine"
+          subtitle="Manage medication schedules"
+          icon={<Pill size={28} color="#2563EB" />}
+          fontScale={fontScale}
+        />
 
-        <TouchableOpacity
+        <QuickActionCard
           onPress={() => navigation.navigate('SymptomsTab')}
-          style={[styles.gridCell, { backgroundColor: theme.card, borderColor: theme.border }]}
-        >
-          <Text style={styles.gridEmoji}>🤒</Text>
-          <Text style={[styles.gridLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Log Symptom</Text>
-        </TouchableOpacity>
+          title="Log Symptoms"
+          subtitle="Record how you feel today"
+          icon={<Activity size={28} color="#2563EB" />}
+          fontScale={fontScale}
+        />
 
-        <TouchableOpacity
+        <QuickActionCard
           onPress={() => navigation.navigate('ReportsTab')}
-          style={[styles.gridCell, { backgroundColor: theme.card, borderColor: theme.border }]}
-        >
-          <Text style={styles.gridEmoji}>📄</Text>
-          <Text style={[styles.gridLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Reports</Text>
-        </TouchableOpacity>
+          title="Reports"
+          subtitle="Compile and share logs"
+          icon={<FileText size={28} color="#2563EB" />}
+          fontScale={fontScale}
+        />
       </View>
 
       {/* EMERGENCY SOS BUTTON */}
@@ -326,17 +401,22 @@ Please contact me immediately.`;
         {sosLoading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={[styles.sosButtonText, { fontSize: 20 * fontScale }]}>🚨 EMERGENCY SOS</Text>
+          <View style={styles.sosRow}>
+            <ShieldAlert size={22} color="#FFFFFF" style={styles.sosIcon} />
+            <Text style={[styles.sosButtonText, { fontSize: 18 * fontScale }]}>EMERGENCY SOS</Text>
+          </View>
         )}
       </TouchableOpacity>
 
       {/* Today's Medicines Checklist */}
-      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Today's Medicines</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 18 * fontScale }]}>Today's Medicines</Text>
       <Card style={styles.checklistCard}>
         {todaySchedule.length === 0 ? (
           <View style={styles.emptyChecklist}>
-            <Text style={{ fontSize: 32 }}>🎉</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 15 * fontScale, marginTop: 4 }}>
+            <IconContainer size={40} backgroundColor={theme.primaryLight}>
+              <Check color={theme.primary} size={20} />
+            </IconContainer>
+            <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, marginTop: 8 }}>
               No medications scheduled for today.
             </Text>
           </View>
@@ -351,11 +431,11 @@ Please contact me immediately.`;
             >
               <View style={styles.checkItemLeft}>
                 <Text style={[styles.checkTime, { color: theme.primary, fontSize: 15 * fontScale }]}>{item.time}</Text>
-                <View style={{ marginLeft: 12 }}>
+                <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={[styles.checkMedName, { color: theme.text, fontSize: 16 * fontScale }]}>
                     {item.med.name}
                   </Text>
-                  <Text style={[styles.checkMedDosage, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+                  <Text style={[styles.checkMedDosage, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>
                     {item.med.dosage} {item.med.unit} - {item.med.instructions || 'No instructions'}
                   </Text>
                 </View>
@@ -363,12 +443,14 @@ Please contact me immediately.`;
 
               <View style={styles.checkItemRight}>
                 {item.taken ? (
-                  <View style={[styles.statusBadge, { backgroundColor: theme.successLight }]}>
-                    <Text style={{ color: theme.success, fontWeight: 'bold' }}>Taken</Text>
+                  <View style={[styles.statusBadge, styles.statusTaken]}>
+                    <Check size={14} color="#10B981" style={{ marginRight: 4 }} />
+                    <Text style={styles.statusBadgeTextTaken}>Taken</Text>
                   </View>
                 ) : item.skipped ? (
-                  <View style={[styles.statusBadge, { backgroundColor: theme.border }]}>
-                    <Text style={{ color: theme.textSecondary, fontWeight: 'bold' }}>Skipped</Text>
+                  <View style={[styles.statusBadge, styles.statusSkipped]}>
+                    <X size={14} color="#64748B" style={{ marginRight: 4 }} />
+                    <Text style={styles.statusBadgeTextSkipped}>Skipped</Text>
                   </View>
                 ) : (
                   <View style={styles.checkActionRow}>
@@ -376,13 +458,13 @@ Please contact me immediately.`;
                       onPress={() => handleLogMedication(item.med.id, item.time, 'TAKEN')}
                       style={[styles.actionBtnCheck, { backgroundColor: theme.success }]}
                     >
-                      <Text style={styles.actionBtnText}>✓</Text>
+                      <Check size={16} color="#FFFFFF" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleLogMedication(item.med.id, item.time, 'SKIPPED')}
                       style={[styles.actionBtnCheck, { backgroundColor: theme.border, marginLeft: 8 }]}
                     >
-                      <Text style={{ color: theme.textSecondary, fontWeight: 'bold' }}>✗</Text>
+                      <X size={16} color={theme.textSecondary} />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -393,7 +475,7 @@ Please contact me immediately.`;
       </Card>
 
       {/* Today's Vitals Summary Card */}
-      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Latest Vitals Status</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 18 * fontScale }]}>Latest Vitals Status</Text>
       <Card style={styles.vitalsSummaryCard}>
         {lastVital ? (
           <View>
@@ -403,7 +485,7 @@ Please contact me immediately.`;
                   <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
                     Blood Pressure
                   </Text>
-                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 17 * fontScale }]}>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
                     {lastVital.systolic}/{lastVital.diastolic} mmHg
                   </Text>
                 </View>
@@ -417,7 +499,7 @@ Please contact me immediately.`;
                   <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
                     Blood Sugar
                   </Text>
-                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 17 * fontScale }]}>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
                     {lastVital.blood_sugar_fasting
                       ? `Fasting: ${lastVital.blood_sugar_fasting}`
                       : `Post-Meal: ${lastVital.blood_sugar_post_meal}`}{' '}
@@ -434,11 +516,39 @@ Please contact me immediately.`;
                   <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
                     Oxygen Saturation (SpO2)
                   </Text>
-                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 17 * fontScale }]}>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
                     {lastVital.spo2}%
                   </Text>
                 </View>
                 <VitalBadge status={spo2Details.status} label={spo2Details.badge} />
+              </View>
+            )}
+
+            {lastVital.heart_rate && hrDetails && (
+              <View style={styles.vitalRow}>
+                <View>
+                  <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+                    Heart Rate
+                  </Text>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
+                    {lastVital.heart_rate} BPM
+                  </Text>
+                </View>
+                <VitalBadge status={hrDetails.status} label={hrDetails.badge} />
+              </View>
+            )}
+
+            {lastVital.temperature && tempDetails && (
+              <View style={styles.vitalRow}>
+                <View>
+                  <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+                    Body Temperature
+                  </Text>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
+                    {lastVital.temperature}°C
+                  </Text>
+                </View>
+                <VitalBadge status={tempDetails.status} label={tempDetails.badge} />
               </View>
             )}
 
@@ -448,25 +558,26 @@ Please contact me immediately.`;
                   <Text style={[styles.vitalLabel, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
                     Current Weight
                   </Text>
-                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 17 * fontScale }]}>
+                  <Text style={[styles.vitalValue, { color: theme.text, fontSize: 16 * fontScale }]}>
                     {lastVital.weight} kg
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: theme.primaryLight }]}>
-                  <Text style={{ color: theme.primary, fontWeight: 'bold' }}>Logged</Text>
+                <View style={[styles.statusBadge, styles.statusLogged]}>
+                  <Text style={{ color: theme.primary, fontSize: 12, fontWeight: 'bold' }}>Logged</Text>
                 </View>
               </View>
             )}
 
-            <TouchableOpacity onPress={() => navigation.navigate('VitalsTab')} style={{ marginTop: 8, alignSelf: 'center' }}>
-              <Text style={{ color: theme.primary, fontWeight: 'bold', fontSize: 15 * fontScale }}>
-                View Full Vitals Logs History →
+            <TouchableOpacity onPress={() => navigation.navigate('VitalsTab')} style={styles.viewMoreVitals}>
+              <Text style={{ color: theme.primary, fontWeight: 'bold', fontSize: 14 * fontScale }}>
+                View Full Vitals Logs History
               </Text>
+              <ChevronRight size={16} color={theme.primary} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
         ) : (
           <View style={{ alignItems: 'center', padding: 8 }}>
-            <Text style={{ color: theme.textSecondary, fontSize: 15 * fontScale, textAlign: 'center' }}>
+            <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, textAlign: 'center' }}>
               No vitals logged yet today.
             </Text>
             <Button
@@ -480,19 +591,19 @@ Please contact me immediately.`;
       </Card>
 
       {/* Symptom status */}
-      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Last Logged Symptom</Text>
-      <Card style={{ marginBottom: 32 }}>
+      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 18 * fontScale }]}>Last Logged Symptom</Text>
+      <Card style={styles.symptomSummaryCard}>
         {lastSymptom ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={[styles.checkMedName, { color: theme.text, fontSize: 16 * fontScale }]}>
                 {lastSymptom.name}
               </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, marginTop: 2 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 * fontScale, marginTop: 2 }}>
                 Logged at: {new Date(lastSymptom.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </Text>
               {lastSymptom.notes && (
-                <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, fontStyle: 'italic', marginTop: 4 }}>
+                <Text style={{ color: theme.textSecondary, fontSize: 13 * fontScale, fontStyle: 'italic', marginTop: 4 }}>
                   "{lastSymptom.notes}"
                 </Text>
               )}
@@ -504,7 +615,7 @@ Please contact me immediately.`;
           </View>
         ) : (
           <View style={{ alignItems: 'center', padding: 8 }}>
-            <Text style={{ color: theme.textSecondary, fontSize: 15 * fontScale, textAlign: 'center' }}>
+            <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, textAlign: 'center' }}>
               No symptoms logged recently.
             </Text>
           </View>
@@ -529,68 +640,64 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  welcomeTextGroup: {
+    marginLeft: 16,
   },
   welcomeText: {
     fontWeight: '500',
   },
   nameText: {
-    fontWeight: '900',
+    fontWeight: 'bold',
     marginTop: 2,
   },
   notifBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
   },
   badgeCount: {
     position: 'absolute',
     top: -2,
     right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   scoreHeroCard: {
     padding: 20,
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    marginBottom: 12,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   scoreGauge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 76,
+    height: 76,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  scoreText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  scoreSub: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
   },
   scoreDetails: {
     flex: 1,
@@ -621,54 +728,83 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   sectionTitle: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  gridCell: {
+  gridCellWrapper: {
     width: '48%',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
     marginVertical: 6,
-    borderWidth: 1,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  gridEmoji: {
-    fontSize: 28,
-    marginBottom: 6,
+  gridCellGradient: {
+    borderRadius: 16,
+    paddingTop: 18,
+    paddingBottom: 18,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  gridLabel: {
-    fontWeight: '700',
+  iconCircleContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  gridCellTitle: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  gridCellSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
   },
   sosButton: {
     width: '100%',
     height: 52,
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 4,
+  },
+  sosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sosIcon: {
+    marginRight: 8,
   },
   sosButtonText: {
     color: '#FFFFFF',
-    fontWeight: '900',
+    fontWeight: 'bold',
   },
   checklistCard: {
     padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   emptyChecklist: {
     alignItems: 'center',
@@ -700,9 +836,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
+  },
+  statusTaken: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusSkipped: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusLogged: {
+    backgroundColor: '#DBEAFE',
+  },
+  statusBadgeTextTaken: {
+    color: '#10B981',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  statusBadgeTextSkipped: {
+    color: '#64748B',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   checkActionRow: {
     flexDirection: 'row',
@@ -714,13 +871,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  actionBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
   vitalsSummaryCard: {
     paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   vitalRow: {
     flexDirection: 'row',
@@ -729,7 +886,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
   vitalLabel: {
     fontWeight: '600',
@@ -737,5 +894,21 @@ const styles = StyleSheet.create({
   vitalValue: {
     fontWeight: 'bold',
     marginTop: 2,
+  },
+  viewMoreVitals: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  symptomSummaryCard: {
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    padding: 16,
   },
 });

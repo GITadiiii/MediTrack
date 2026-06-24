@@ -4,6 +4,9 @@ import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { PageHeader } from '../../components/PageHeader';
+import { IconContainer } from '../../components/IconContainer';
+import { Bell, AlertTriangle, Pill, Calendar } from 'lucide-react-native';
 
 interface NotificationsCenterScreenProps {
   navigation: any;
@@ -14,17 +17,17 @@ export const NotificationsCenterScreen: React.FC<NotificationsCenterScreenProps>
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
 
-  const getEmojiForType = (type: string) => {
+  const getIconForType = (type: string, color: string) => {
     switch (type) {
       case 'medication_refill':
-        return '⚠️';
+        return <AlertTriangle size={20} color={color} />;
       case 'medication_reminder':
-        return '💊';
+        return <Pill size={20} color={color} />;
       case 'appointment':
-        return '📅';
+        return <Calendar size={20} color={color} />;
       case 'daily_check':
       default:
-        return '🔔';
+        return <Bell size={20} color={color} />;
     }
   };
 
@@ -38,8 +41,8 @@ export const NotificationsCenterScreen: React.FC<NotificationsCenterScreenProps>
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Notifications Center</Text>
+      <View style={styles.headerRow}>
+        <PageHeader title="Notifications" icon={<Bell color="#FFFFFF" size={20} />} />
         {notifications.length > 0 && (
           <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn}>
             <Text style={[styles.clearBtnText, { color: theme.danger, fontSize: 15 * fontScale }]}>Clear All</Text>
@@ -51,8 +54,10 @@ export const NotificationsCenterScreen: React.FC<NotificationsCenterScreenProps>
       <ScrollView contentContainerStyle={styles.scrollList}>
         {notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={{ fontSize: 40 }}>🔔</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 16 * fontScale, marginTop: 8, textAlign: 'center' }}>
+            <IconContainer size={64} backgroundColor="#EFF6FF">
+              <Bell size={32} color="#2563EB" />
+            </IconContainer>
+            <Text style={{ color: theme.textSecondary, fontSize: 16 * fontScale, marginTop: 16, textAlign: 'center' }}>
               No notifications yet. You will see alerts for low stock refills and follow-up sessions here.
             </Text>
             <Button
@@ -76,7 +81,9 @@ export const NotificationsCenterScreen: React.FC<NotificationsCenterScreenProps>
               ]}
             >
               <View style={styles.notifContent}>
-                <Text style={{ fontSize: 22 }}>{getEmojiForType(notif.type)}</Text>
+                <IconContainer size={40} backgroundColor={notif.isRead ? '#F1F5F9' : '#EFF6FF'}>
+                  {getIconForType(notif.type, notif.isRead ? theme.textSecondary : '#2563EB')}
+                </IconContainer>
                 
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={[styles.notifTitle, { color: theme.text, fontSize: 15 * fontScale, fontWeight: notif.isRead ? 'bold' : '900' }]}>
@@ -111,14 +118,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontWeight: 'bold',
+    paddingRight: 16,
   },
   clearBtn: {
     padding: 6,

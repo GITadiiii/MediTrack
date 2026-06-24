@@ -45,12 +45,41 @@ export const evaluateSpO2 = (spo2: number): { status: VitalStatus; text: string 
 };
 
 export const evaluateTemperature = (temp: number): { status: VitalStatus; text: string } => {
-  // Critical: >=38 or <36.1
-  if (temp >= 38 || temp < 36.1) {
-    return { status: 'critical', text: 'Fever/Low Temp' };
+  // Critical Low: <35.0°C
+  if (temp < 35.0) {
+    return { status: 'low_temp', text: 'LOW BODY TEMPERATURE' };
   }
-  // Normal: 36.1-37.2
-  return { status: 'normal', text: 'Normal' };
+  // Normal: 35.0°C – 37.5°C
+  if (temp >= 35.0 && temp <= 37.5) {
+    return { status: 'normal', text: 'NORMAL' };
+  }
+  // Mild Fever: 37.6°C – 38.5°C
+  if (temp >= 37.6 && temp <= 38.5) {
+    return { status: 'borderline', text: 'FEVER' };
+  }
+  // High Fever: >38.5°C
+  return { status: 'critical', text: 'HIGH FEVER' };
+};
+
+export const evaluateHeartRate = (rate: number): { status: VitalStatus; text: string } => {
+  // Critical Low: <40 BPM
+  if (rate < 40) {
+    return { status: 'critical', text: 'CRITICAL LOW' };
+  }
+  // Low: 40–59 BPM
+  if (rate >= 40 && rate <= 59) {
+    return { status: 'borderline', text: 'LOW' };
+  }
+  // Normal: 60–100 BPM
+  if (rate >= 60 && rate <= 100) {
+    return { status: 'normal', text: 'NORMAL' };
+  }
+  // High: 101–120 BPM
+  if (rate >= 101 && rate <= 120) {
+    return { status: 'borderline', text: 'HIGH' };
+  }
+  // Critical High: > 120 BPM
+  return { status: 'critical', text: 'CRITICAL HIGH' };
 };
 
 // --- COMPLIANCE MATH ---

@@ -13,7 +13,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { themeMode, contrastMode, fontSizeScale, setUser, setIsLocked } = useAppStore();
+  const { themeMode, contrastMode, fontSizeScale, setUser, setIsLocked, autoBiometricsDisabled } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
 
@@ -43,8 +43,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     const defaultUser = checkUserExists();
     if (defaultUser) {
       setEmail(defaultUser.email);
-      // Auto-trigger biometrics if enabled
-      if (defaultUser.biometrics_enabled === 1) {
+      // Auto-trigger biometrics if enabled and not disabled via logout
+      if (defaultUser.biometrics_enabled === 1 && !autoBiometricsDisabled) {
         triggerBiometricAuth(defaultUser);
       }
     }

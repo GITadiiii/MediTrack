@@ -1,16 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
-import { getMedicalProfile, updateMedicalProfile, getEmergencyContact, saveEmergencyContact, MedicalProfileDB } from '../../database/dbHelpers';
+import {
+  getMedicalProfile,
+  updateMedicalProfile,
+  getEmergencyContact,
+  saveEmergencyContact,
+  updateUserBasicDetails,
+  MedicalProfileDB,
+  EmergencyContactDB,
+  getEmergencyContacts,
+  addEmergencyContact,
+  updateEmergencyContactDetail,
+  deleteEmergencyContact,
+} from '../../database/dbHelpers';
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { PageHeader } from '../../components/PageHeader';
+import { IconContainer } from '../../components/IconContainer';
+import { User, AlertTriangle, Settings, Pencil, Trash2 } from 'lucide-react-native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
+
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 type ProfileSection = 'personal' | 'medical' | 'emergency';
 
 export const ProfileScreen: React.FC = () => {
-  const { themeMode, contrastMode, fontSizeScale, user, logout } = useAppStore();
+  const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
+  const { themeMode, contrastMode, fontSizeScale, user, setUser, logout } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
 
@@ -38,10 +65,23 @@ export const ProfileScreen: React.FC = () => {
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyRelation, setEmergencyRelation] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [phoneType, setPhoneType] = useState<'IN' | 'INTL'>('IN');
+  const [rawPhone, setRawPhone] = useState('');
+  const [contactsList, setContactsList] = useState<EmergencyContactDB[]>([]);
+  const [editingContactId, setEditingContactId] = useState<number | null>(null);
 
   useEffect(() => {
-    loadProfileData();
-  }, [user]);
+    if (isFocused && user) {
+      loadProfileData();
+    }
+  }, [isFocused, user]);
+
+  const formatDisplayValue = (value: string | number | null | undefined, unit?: string): string => {
+    if (value === null || value === undefined) return 'Not specified';
+    const str = value.toString().trim();
+    if (str === '' || str === '0' || str === '0.0') return 'Not specified';
+    return unit ? `${str} ${unit}` : str;
+  };
 
   const loadProfileData = () => {
     if (!user) return;
@@ -52,13 +92,13 @@ export const ProfileScreen: React.FC = () => {
       setProfile(medProfile);
       
       // Personal
-      setName(user.name);
-      setAge(medProfile.age.toString());
-      setGender(medProfile.gender);
-      setDob(medProfile.dob);
-      setBloodGroup(medProfile.blood_group);
-      setHeight(medProfile.height.toString());
-      setWeight(medProfile.weight.toString());
+      setName(user.name || '');
+      setAge(medProfile.age && medProfile.age !== 0 ? medProfile.age.toString() : '');
+      setGender(medProfile.gender || '');
+      setDob(medProfile.dob || '');
+      setBloodGroup(medProfile.blood_group || '');
+      setHeight(medProfile.height && medProfile.height !== 0 ? medProfile.height.toString() : '');
+      setWeight(medProfile.weight && medProfile.weight !== 0 ? medProfile.weight.toString() : '');
 
       // Medical Arrays
       setConditions(parseJsonArrayToCommaString(medProfile.conditions));
@@ -66,15 +106,87 @@ export const ProfileScreen: React.FC = () => {
       setMedications(parseJsonArrayToCommaString(medProfile.medications));
       setSurgeries(parseJsonArrayToCommaString(medProfile.surgeries));
       setFamilyHistory(parseJsonArrayToCommaString(medProfile.family_history));
+    } else {
+      setName(user.name || '');
+      setAge('');
+      setGender('');
+      setDob('');
+      setBloodGroup('');
+      setHeight('');
+      setWeight('');
     }
 
-    // Load Emergency Contact
-    const contact = getEmergencyContact(user.id);
-    if (contact) {
-      setEmergencyName(contact.name);
-      setEmergencyRelation(contact.relation);
-      setEmergencyPhone(contact.phone);
+    // Load Emergency Contact List
+    const list = getEmergencyContacts(user.id);
+    setContactsList(list);
+
+    if (list.length > 0) {
+      const primary = list[0];
+      setEmergencyName(primary.name);
+      setEmergencyRelation(primary.relation);
+      const phoneVal = primary.phone || '';
+      setEmergencyPhone(phoneVal);
+    } else {
+      setEmergencyName('');
+      setEmergencyRelation('');
+      setEmergencyPhone('');
     }
+  };
+
+  const startEditingContact = (contact: EmergencyContactDB) => {
+    setEditingContactId(contact.id);
+    setEmergencyName(contact.name);
+    setEmergencyRelation(contact.relation);
+    setEmergencyPhone(contact.phone);
+    
+    const phoneVal = contact.phone || '';
+    if (phoneVal.startsWith('+91') && phoneVal.length === 13) {
+      setPhoneType('IN');
+      setRawPhone(phoneVal.slice(3));
+    } else {
+      setPhoneType('INTL');
+      setRawPhone(phoneVal);
+    }
+    setIsEditing(true);
+  };
+
+  const startAddingContact = () => {
+    if (contactsList.length >= 5) {
+      showAlert('Limit Reached', 'You can enter a maximum of 5 emergency contacts.');
+      return;
+    }
+    setEditingContactId(null);
+    setEmergencyName('');
+    setEmergencyRelation('');
+    setEmergencyPhone('');
+    setRawPhone('');
+    setPhoneType('IN');
+    setIsEditing(true);
+  };
+
+  const handleDeleteContact = (contactId: number) => {
+    const executeDelete = () => {
+      try {
+        deleteEmergencyContact(contactId);
+        showAlert('Success', 'Emergency contact deleted successfully.');
+        loadProfileData();
+      } catch (error) {
+        console.log("SQLite Error:", error);
+        showAlert('Error', 'Unable to delete emergency contact.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this emergency contact?')) {
+        executeDelete();
+      }
+      return;
+    }
+
+    Alert.alert('Delete Contact', 'Are you sure you want to delete this emergency contact?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: executeDelete },
+    ]);
   };
 
   const parseJsonArrayToCommaString = (jsonStr: string | null): string => {
@@ -96,76 +208,193 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const handleSave = () => {
-    if (!user || !profile) return;
+    if (!user) return;
 
-    // Validate inputs
     if (activeSection === 'personal') {
-      if (!name.trim() || !age.trim() || !dob.trim() || !bloodGroup.trim() || !height.trim() || !weight.trim()) {
-        Alert.alert('Validation Error', 'Please fill in all personal details.');
+      if (!name.trim()) {
+        showAlert('Validation Error', 'Full Name is required.');
         return;
       }
       
-      const parsedAge = parseInt(age, 10);
-      const parsedHeight = parseFloat(height);
-      const parsedWeight = parseFloat(weight);
+      const parsedAge = age.trim() === '' ? 0 : parseInt(age, 10);
+      const parsedHeight = height.trim() === '' ? 0 : parseFloat(height);
+      const parsedWeight = weight.trim() === '' ? 0 : parseFloat(weight);
 
-      if (isNaN(parsedAge) || isNaN(parsedHeight) || isNaN(parsedWeight)) {
-        Alert.alert('Validation Error', 'Age, height, and weight must be numerical values.');
+      if ((age.trim() !== '' && isNaN(parsedAge)) || 
+          (height.trim() !== '' && isNaN(parsedHeight)) || 
+          (weight.trim() !== '' && isNaN(parsedWeight))) {
+        showAlert('Validation Error', 'Age, height, and weight must be numerical values.');
         return;
       }
 
-      updateMedicalProfile({
-        user_id: user.id,
+      const formData = {
+        name: name.trim(),
         age: parsedAge,
-        gender,
-        dob,
-        blood_group: bloodGroup,
+        gender: gender.trim(),
+        dob: dob.trim(),
+        blood_group: bloodGroup.trim(),
         height: parsedHeight,
         weight: parsedWeight,
-        conditions: profile.conditions,
-        allergies: profile.allergies,
-        medications: profile.medications,
-        surgeries: profile.surgeries,
-        family_history: profile.family_history,
-      });
+      };
+      console.log("Profile Form Data:", formData);
 
-      Alert.alert('Success', 'Personal profile details updated.');
+      // Fetch or fallback to get medical profile to ensure it exists
+      const currentProfile = getMedicalProfile(user.id) || {
+        conditions: '[]',
+        allergies: '[]',
+        medications: '[]',
+        surgeries: '[]',
+        family_history: '[]'
+      };
+
+      try {
+        updateUserBasicDetails(user.id, formData.name);
+        updateMedicalProfile({
+          user_id: user.id,
+          age: formData.age,
+          gender: formData.gender,
+          dob: formData.dob,
+          blood_group: formData.blood_group,
+          height: formData.height,
+          weight: formData.weight,
+          conditions: currentProfile.conditions,
+          allergies: currentProfile.allergies,
+          medications: currentProfile.medications,
+          surgeries: currentProfile.surgeries,
+          family_history: currentProfile.family_history,
+        });
+
+        // Update Zustand store
+        setUser({
+          ...user,
+          name: formData.name,
+        });
+
+        console.log("Profile Update Result:", true);
+        showAlert('Success', 'Profile updated successfully.');
+        setIsEditing(false);
+        loadProfileData();
+      } catch (error) {
+        console.log("Profile Update Result:", false);
+        console.log("SQLite Error:", error);
+        showAlert('Error', 'Unable to save profile. Please complete required fields.');
+      }
     } 
     
     else if (activeSection === 'medical') {
-      updateMedicalProfile({
-        user_id: user.id,
-        age: profile.age,
-        gender: profile.gender,
-        dob: profile.dob,
-        blood_group: profile.blood_group,
-        height: profile.height,
-        weight: profile.weight,
+      const currentProfile = getMedicalProfile(user.id);
+      if (!currentProfile) {
+        console.log("Profile Update Result:", false);
+        console.log("SQLite Error:", "Medical profile not found for user ID " + user.id);
+        showAlert('Error', 'Unable to update medical records.');
+        return;
+      }
+
+      const formData = {
         conditions: parseCommaStringToJsonArray(conditions),
         allergies: parseCommaStringToJsonArray(allergies),
         medications: parseCommaStringToJsonArray(medications),
         surgeries: parseCommaStringToJsonArray(surgeries),
         family_history: parseCommaStringToJsonArray(familyHistory),
-      });
+      };
+      console.log("Profile Form Data:", formData);
 
-      Alert.alert('Success', 'Medical records updated.');
+      try {
+        updateMedicalProfile({
+          user_id: user.id,
+          age: currentProfile.age,
+          gender: currentProfile.gender,
+          dob: currentProfile.dob,
+          blood_group: currentProfile.blood_group,
+          height: currentProfile.height,
+          weight: currentProfile.weight,
+          conditions: formData.conditions,
+          allergies: formData.allergies,
+          medications: formData.medications,
+          surgeries: formData.surgeries,
+          family_history: formData.family_history,
+        });
+
+        console.log("Profile Update Result:", true);
+        showAlert('Success', 'Medical records updated.');
+        setIsEditing(false);
+        loadProfileData();
+      } catch (error) {
+        console.log("Profile Update Result:", false);
+        console.log("SQLite Error:", error);
+        showAlert('Error', 'Unable to update medical records.');
+      }
     } 
     
     else if (activeSection === 'emergency') {
-      if (!emergencyName.trim() || !emergencyRelation.trim() || !emergencyPhone.trim()) {
-        Alert.alert('Validation Error', 'Please fill in all emergency contact details.');
+      if (!emergencyName.trim() || !emergencyRelation.trim() || !rawPhone.trim()) {
+        showAlert('Validation Error', 'Please fill in all emergency contact details.');
         return;
       }
 
-      saveEmergencyContact(user.id, emergencyName, emergencyRelation, emergencyPhone);
-      Alert.alert('Success', 'Emergency contact saved.');
-    }
+      let finalPhone = '';
+      if (phoneType === 'IN') {
+        const cleaned = rawPhone.trim().replace(/\D/g, '');
+        if (cleaned.length !== 10 || !/^[6-9]/.test(cleaned)) {
+          showAlert('Validation Error', 'Enter a valid Indian mobile number.');
+          return;
+        }
+        finalPhone = `+91${cleaned}`;
+      } else {
+        let cleaned = rawPhone.trim().replace(/\s+/g, '');
+        if (!cleaned.startsWith('+')) {
+          cleaned = `+${cleaned}`;
+        }
+        const parsed = parsePhoneNumberFromString(cleaned);
+        if (!parsed || !parsed.isValid()) {
+          showAlert(
+            'Validation Error',
+            'Enter a valid international phone number starting with + followed by 10 to 15 digits (e.g. +14155552671).'
+          );
+          return;
+        }
+        finalPhone = parsed.format('E.164');
+      }
 
-    setIsEditing(false);
-    loadProfileData(); // Reload
+      const formData = {
+        name: emergencyName.trim(),
+        relation: emergencyRelation.trim(),
+        phone: finalPhone,
+      };
+      console.log("Profile Form Data:", formData);
+
+      try {
+        if (editingContactId === null) {
+          if (contactsList.length >= 5) {
+            showAlert('Limit Reached', 'You can enter a maximum of 5 emergency contacts.');
+            return;
+          }
+          addEmergencyContact(user.id, formData.name, formData.relation, formData.phone);
+        } else {
+          updateEmergencyContactDetail(editingContactId, formData.name, formData.relation, formData.phone);
+        }
+
+        console.log("Profile Update Result:", true);
+        showAlert('Success', 'Emergency contact updated successfully.');
+        setIsEditing(false);
+        setEditingContactId(null);
+        loadProfileData();
+      } catch (error) {
+        console.log("Profile Update Result:", false);
+        console.log("SQLite Error:", error);
+        showAlert('Error', 'Unable to update emergency contact.');
+      }
+    }
   };
 
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to log out of your session?')) {
+        logout();
+      }
+      return;
+    }
+
     Alert.alert('Logout', 'Are you sure you want to log out of your session?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: logout },
@@ -177,25 +406,25 @@ export const ProfileScreen: React.FC = () => {
       return (
         <Card style={styles.formCard}>
           <Input label="Full Name" value={name} onChangeText={setName} placeholder="John Doe" />
-          <Input label="Age" value={age} onChangeText={setAge} placeholder="e.g. 65" keyboardType="number-pad" />
+          <Input label="Age" value={age} onChangeText={setAge} placeholder="e.g. 25" keyboardType="number-pad" />
           <Input label="Gender" value={gender} onChangeText={setGender} placeholder="Male / Female / Other" />
           <Input label="Date of Birth" value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" />
-          <Input label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} placeholder="e.g. A-Positive" />
-          <Input label="Height (cm)" value={height} onChangeText={setHeight} placeholder="e.g. 175" keyboardType="decimal-pad" />
-          <Input label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="e.g. 80.5" keyboardType="decimal-pad" />
+          <Input label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} placeholder="e.g. O-Positive" />
+          <Input label="Height (cm)" value={height} onChangeText={setHeight} placeholder="e.g. 170" keyboardType="decimal-pad" />
+          <Input label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="e.g. 65" keyboardType="decimal-pad" />
         </Card>
       );
     }
 
     return (
       <Card style={styles.viewCard}>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Full Name</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{name}</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Age</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{age} years</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Gender</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{gender || 'Not specified'}</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Date of Birth</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{dob || 'Not specified'}</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Blood Group</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale, fontWeight: 'bold' }]}>{bloodGroup || 'Not specified'}</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Height</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{height} cm</Text></View>
-        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Weight</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{weight} kg</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Full Name</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{name || 'Not specified'}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Age</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{formatDisplayValue(age, 'years')}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Gender</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{formatDisplayValue(gender)}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Date of Birth</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{formatDisplayValue(dob)}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Blood Group</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale, fontWeight: 'bold' }]}>{formatDisplayValue(bloodGroup)}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Height</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{formatDisplayValue(height, 'cm')}</Text></View>
+        <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Weight</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{formatDisplayValue(weight, 'kg')}</Text></View>
       </Card>
     );
   };
@@ -245,39 +474,149 @@ export const ProfileScreen: React.FC = () => {
         <Card style={styles.formCard}>
           <Input label="Contact Full Name" value={emergencyName} onChangeText={setEmergencyName} placeholder="Sarah Doe" />
           <Input label="Relationship to Patient" value={emergencyRelation} onChangeText={setEmergencyRelation} placeholder="e.g. Spouse, Daughter, Son" />
-          <Input label="Phone Number" value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder="e.g. +1 555 9876" keyboardType="phone-pad" />
+          
+          <View style={{ marginVertical: 8, width: '100%' }}>
+            <Text
+              style={{
+                color: theme.text,
+                fontSize: 15 * fontScale,
+                fontWeight: contrastMode === 'high' ? '900' : '600',
+                marginBottom: 6,
+              }}
+            >
+              Emergency Contact Phone Number
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => setPhoneType(phoneType === 'IN' ? 'INTL' : 'IN')}
+                activeOpacity={0.7}
+                style={{
+                  height: 48,
+                  width: 100,
+                  borderRadius: 8,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  borderWidth: contrastMode === 'high' ? 2 : 1,
+                  marginRight: 8,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 16 * fontScale, fontWeight: 'bold' }}>
+                  {phoneType === 'IN' ? '🇮🇳 +91' : '🌐 Intl'}
+                </Text>
+              </TouchableOpacity>
+              <TextInput
+                value={rawPhone}
+                onChangeText={setRawPhone}
+                placeholder={phoneType === 'IN' ? '9876543210' : '+14155552671'}
+                placeholderTextColor={theme.textSecondary}
+                keyboardType={phoneType === 'IN' ? 'number-pad' : 'phone-pad'}
+                maxLength={phoneType === 'IN' ? 10 : 20}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 8,
+                  paddingHorizontal: 14,
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  borderWidth: contrastMode === 'high' ? 2 : 1,
+                  fontSize: 16 * fontScale,
+                }}
+              />
+            </View>
+          </View>
         </Card>
       );
     }
 
     return (
-      <Card style={styles.viewCard}>
-        {emergencyName ? (
-          <>
-            <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Contact Name</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{emergencyName}</Text></View>
-            <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Relationship</Text><Text style={[styles.value, { color: theme.text, fontSize: 17 * fontScale }]}>{emergencyRelation}</Text></View>
-            <View style={styles.dataRow}><Text style={[styles.label, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>Phone Number</Text><Text style={[styles.value, { color: theme.danger, fontSize: 18 * fontScale, fontWeight: 'bold' }]}>{emergencyPhone}</Text></View>
-          </>
+      <View>
+        {contactsList.length > 0 ? (
+          contactsList.map((contact) => (
+            <Card key={contact.id} style={[styles.viewCard, { marginBottom: 12, padding: 14 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ color: theme.primary, fontWeight: 'bold', fontSize: 17 * fontScale }}>
+                  {contact.relation} Contact
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TouchableOpacity
+                    onPress={() => startEditingContact(contact)}
+                    style={{ padding: 6, marginRight: 12 }}
+                    activeOpacity={0.7}
+                  >
+                    <Pencil size={18} color={theme.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteContact(contact.id)}
+                    style={{ padding: 6 }}
+                    activeOpacity={0.7}
+                  >
+                    <Trash2 size={18} color={theme.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={styles.dataRowPlain}>
+                <Text style={[styles.label, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>Contact Name</Text>
+                <Text style={[styles.value, { color: theme.text, fontSize: 16 * fontScale }]}>{contact.name}</Text>
+              </View>
+              <View style={styles.dataRowPlain}>
+                <Text style={[styles.label, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>Relationship</Text>
+                <Text style={[styles.value, { color: theme.text, fontSize: 16 * fontScale }]}>{contact.relation}</Text>
+              </View>
+              <View style={styles.dataRowPlain}>
+                <Text style={[styles.label, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>Phone Number</Text>
+                <Text style={[styles.value, { color: theme.danger, fontSize: 16 * fontScale, fontWeight: 'bold' }]}>{contact.phone}</Text>
+              </View>
+            </Card>
+          ))
         ) : (
-          <View style={{ alignItems: 'center', padding: 12 }}>
-            <Text style={{ color: theme.danger, fontSize: 16 * fontScale, fontWeight: 'bold', textAlign: 'center' }}>
-              ⚠️ No Emergency Contact Listed!
-            </Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, textAlign: 'center', marginTop: 4 }}>
-              Add a contact so the SOS module can function correctly in emergencies.
+          <Card style={styles.viewCard}>
+            <View style={{ alignItems: 'center', padding: 12 }}>
+              <AlertTriangle size={32} color={theme.danger} style={{ marginBottom: 8 }} />
+              <Text style={{ color: theme.danger, fontSize: 16 * fontScale, fontWeight: 'bold', textAlign: 'center' }}>
+                No Emergency Contacts Listed!
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, textAlign: 'center', marginTop: 4 }}>
+                Add a contact so the SOS module can function correctly in emergencies.
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        {contactsList.length >= 5 && (
+          <View style={{ padding: 12, alignItems: 'center' }}>
+            <Text style={{ color: theme.textSecondary, fontSize: 14 * fontScale, fontWeight: 'bold' }}>
+              Maximum limit of 5 emergency contacts reached.
             </Text>
           </View>
         )}
-      </Card>
+      </View>
     );
   };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <PageHeader
+        title="My Profile"
+        icon={<User size={22} color="#FFFFFF" />}
+        rightElement={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            style={styles.settingsHeaderBtn}
+            activeOpacity={0.7}
+          >
+            <Settings size={22} color={theme.text} />
+          </TouchableOpacity>
+        }
+      />
+      
       {/* Header Profile Area */}
       <View style={[styles.profileHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={styles.avatarCircle}>
-          <Text style={{ fontSize: 32, color: theme.primary }}>👤</Text>
+          <User size={40} color={theme.primary} />
         </View>
         <Text style={[styles.profileName, { color: theme.text, fontSize: 22 * fontScale }]}>
           {name || 'MediTrack User'}
@@ -331,15 +670,29 @@ export const ProfileScreen: React.FC = () => {
           {isEditing ? (
             <>
               <Button title="Save Updates" onPress={handleSave} variant="primary" style={{ flex: 1, marginRight: 8 }} />
-              <Button title="Cancel" onPress={() => setIsEditing(false)} variant="secondary" style={{ flex: 1 }} />
+              <Button title="Cancel" onPress={() => {
+                setIsEditing(false);
+                setEditingContactId(null);
+              }} variant="secondary" style={{ flex: 1 }} />
             </>
           ) : (
-            <Button
-              title={`Edit ${activeSection === 'personal' ? 'Personal' : activeSection === 'medical' ? 'Medical' : 'Emergency'} Details`}
-              onPress={() => setIsEditing(true)}
-              variant="primary"
-              style={{ width: '100%' }}
-            />
+            activeSection !== 'emergency' ? (
+              <Button
+                title={`Edit ${activeSection === 'personal' ? 'Personal' : 'Medical'} Details`}
+                onPress={() => setIsEditing(true)}
+                variant="primary"
+                style={{ width: '100%' }}
+              />
+            ) : (
+              contactsList.length < 5 && (
+                <Button
+                  title="Add Emergency Contact"
+                  onPress={startAddingContact}
+                  variant="primary"
+                  style={{ width: '100%' }}
+                />
+              )
+            )
           )}
         </View>
 
@@ -437,5 +790,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 16,
     width: '100%',
+  },
+  settingsHeaderBtn: {
+    padding: 8,
+    marginRight: 16,
+  },
+  dataRowPlain: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
 });

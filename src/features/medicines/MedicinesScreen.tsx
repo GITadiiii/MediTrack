@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Switch, ActivityIndicator, Animated, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { Pill, Clock, Pencil, Trash2, ChevronDown, Check, X, Calendar, BarChart2 } from 'lucide-react-native';
+
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import {
@@ -18,6 +20,8 @@ import { scheduleMedicationReminders, cancelAllReminders, scheduleRefillAlert } 
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { PageHeader } from '../../components/PageHeader';
+import { IconContainer } from '../../components/IconContainer';
 
 export const MedicinesScreen: React.FC = () => {
   const isFocused = useIsFocused();
@@ -153,7 +157,6 @@ export const MedicinesScreen: React.FC = () => {
           startStr = customStart;
           endStr = customEnd;
         } else {
-          // If custom input is invalid, default to last 7 days
           const start = new Date();
           start.setDate(start.getDate() - 6);
           startStr = start.toISOString().split('T')[0];
@@ -208,7 +211,6 @@ export const MedicinesScreen: React.FC = () => {
     if (!user) return;
     const scheduledTime = `${new Date().toISOString().split('T')[0]} ${time}`;
     
-    // Deduct stock locally if Taken
     if (status === 'TAKEN') {
       const med = medsList.find((m) => m.id === medId);
       if (med) {
@@ -285,7 +287,14 @@ export const MedicinesScreen: React.FC = () => {
 
     const times = timesInput
       .split(',')
-      .map((t) => t.trim())
+      .map((t) => {
+        let clean = t.trim();
+        // Automatically pad single digit hour (e.g., "8:00" -> "08:00")
+        if (/^\d{1}:\d{2}$/.test(clean)) {
+          clean = '0' + clean;
+        }
+        return clean;
+      })
       .filter((t) => /^\d{2}:\d{2}$/.test(t));
 
     if (times.length === 0) {
@@ -309,6 +318,9 @@ export const MedicinesScreen: React.FC = () => {
     };
 
     try {
+      console.log("Medication Data:", medData);
+      let remindersScheduled = false;
+
       if (editingMed) {
         updateMedication({
           ...medData,
@@ -316,15 +328,42 @@ export const MedicinesScreen: React.FC = () => {
         });
         
         if (remindersEnabled) {
-          await scheduleMedicationReminders(editingMed.id, name, dosage, unit, times);
+          try {
+            await scheduleMedicationReminders(editingMed.id, name, dosage, unit, times);
+            remindersScheduled = true;
+          } catch (err) {
+            console.warn("Failed to schedule reminders:", err);
+          }
         }
-        Alert.alert('Success', 'Medication updated successfully.');
+        
+        if (remindersEnabled && !remindersScheduled) {
+          Alert.alert(
+            'Saved with Warnings',
+            'Medication updated, but reminders could not be set. Please check notification settings.'
+          );
+        } else {
+          Alert.alert('Success', 'Medication updated successfully.');
+        }
       } else {
         const insertId = addMedication(medData);
+        console.log("Insert Result:", insertId);
         if (remindersEnabled) {
-          await scheduleMedicationReminders(insertId, name, dosage, unit, times);
+          try {
+            await scheduleMedicationReminders(insertId, name, dosage, unit, times);
+            remindersScheduled = true;
+          } catch (err) {
+            console.warn("Failed to schedule reminders:", err);
+          }
         }
-        Alert.alert('Success', 'Medication scheduled successfully.');
+        
+        if (remindersEnabled && !remindersScheduled) {
+          Alert.alert(
+            'Saved with Warnings',
+            'Medication scheduled, but reminders could not be set. Please check notification settings.'
+          );
+        } else {
+          Alert.alert('Success', 'Medication scheduled successfully.');
+        }
       }
 
       setModalVisible(false);
@@ -334,8 +373,9 @@ export const MedicinesScreen: React.FC = () => {
         loadHistory();
       }
     } catch (e) {
+      console.log("SQLite Error:", e);
       console.error(e);
-      Alert.alert('Error', 'Could not save medication schedule.');
+      Alert.alert('Error', 'Unable to save medication. Please verify all required fields.');
     }
   };
 
@@ -417,7 +457,10 @@ export const MedicinesScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Dynamic Header row */}
+      {/* Reusable premium page header */}
+      <PageHeader title="Medicines" icon={<Pill color="#FFFFFF" size={20} />} />
+
+      {/* Dynamic Header row inline dropdown and add routine */}
       <View style={styles.topRow}>
         <View style={styles.dropdownContainer}>
           <TouchableOpacity
@@ -425,9 +468,12 @@ export const MedicinesScreen: React.FC = () => {
             style={[styles.dropdownSelect, { backgroundColor: theme.primary }]}
             activeOpacity={0.85}
           >
-            <Text style={styles.dropdownSelectText}>
-              {viewMode === 'schedule' ? '▼ My Medicine Schedules' : '▼ My Medicine History'}
-            </Text>
+            <View style={styles.dropdownButtonInner}>
+              <Text style={styles.dropdownSelectText}>
+                {viewMode === 'schedule' ? 'My Schedules' : 'My History'}
+              </Text>
+              <ChevronDown size={16} color="#FFFFFF" />
+            </View>
           </TouchableOpacity>
 
           {dropdownOpen && (
@@ -444,11 +490,11 @@ export const MedicinesScreen: React.FC = () => {
                     styles.dropdownOptionText,
                     {
                       color: theme.text,
-                      fontWeight: viewMode === 'schedule' ? '900' : '500',
+                      fontWeight: viewMode === 'schedule' ? 'bold' : '500',
                     },
                   ]}
                 >
-                  My Medicine Schedules
+                  My Schedules
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -464,11 +510,11 @@ export const MedicinesScreen: React.FC = () => {
                     styles.dropdownOptionText,
                     {
                       color: theme.text,
-                      fontWeight: viewMode === 'history' ? '900' : '500',
+                      fontWeight: viewMode === 'history' ? 'bold' : '500',
                     },
                   ]}
                 >
-                  My Medicine History
+                  My History
                 </Text>
               </TouchableOpacity>
             </Animated.View>
@@ -495,8 +541,10 @@ export const MedicinesScreen: React.FC = () => {
             /* SCHEDULE CHECKLIST VIEW */
             todaySchedule.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={{ fontSize: 40 }}>💊</Text>
-                <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: 16 * fontScale }]}>
+                <IconContainer size={44} backgroundColor={theme.primaryLight}>
+                  <Pill color={theme.primary} size={22} />
+                </IconContainer>
+                <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
                   No medications scheduled for today. Click "+ Add Routine" to schedule some.
                 </Text>
               </View>
@@ -510,21 +558,24 @@ export const MedicinesScreen: React.FC = () => {
                         <Text style={[styles.medName, { color: theme.text, fontSize: 18 * fontScale }]}>
                           {item.med.name}
                         </Text>
-                        <Text style={[styles.medTime, { color: theme.primary, fontSize: 14 * fontScale }]}>
-                          ⏰ Scheduled Time: {item.time}
-                        </Text>
+                        <View style={styles.timeLabelRow}>
+                          <Clock size={14} color={theme.primary} />
+                          <Text style={[styles.medTime, { color: theme.primary, fontSize: 13 * fontScale }]}>
+                            Scheduled: {item.time}
+                          </Text>
+                        </View>
                       </View>
                       <View style={styles.actionIconsRow}>
                         <TouchableOpacity onPress={() => handleOpenEdit(item.med)} style={styles.miniActionIcon}>
-                          <Text style={{ fontSize: 16, color: theme.primary }}>✏️</Text>
+                          <Pencil size={16} color={theme.primary} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteMed(item.med.id)} style={[styles.miniActionIcon, { marginLeft: 10 }]}>
-                          <Text style={{ fontSize: 16, color: theme.danger }}>🗑️</Text>
+                        <TouchableOpacity onPress={() => handleDeleteMed(item.med.id)} style={[styles.miniActionIcon, { marginLeft: 12 }]}>
+                          <Trash2 size={16} color={theme.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
 
-                    <Text style={[styles.medDesc, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>
+                    <Text style={[styles.medDesc, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
                       {item.med.dosage} {item.med.unit} — {item.med.instructions || 'No instructions provided.'}
                     </Text>
 
@@ -536,11 +587,13 @@ export const MedicinesScreen: React.FC = () => {
                       {/* Log Action Buttons / Statuses */}
                       {item.taken ? (
                         <View style={[styles.statusBadge, styles.statusTaken]}>
-                          <Text style={styles.statusBadgeText}>🟢 Taken</Text>
+                          <Check size={14} color="#10B981" style={{ marginRight: 4 }} />
+                          <Text style={styles.statusBadgeText}>Taken</Text>
                         </View>
                       ) : item.skipped ? (
                         <View style={[styles.statusBadge, styles.statusSkipped]}>
-                          <Text style={styles.statusBadgeText}>🔴 Skipped</Text>
+                          <X size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                          <Text style={styles.statusBadgeText}>Skipped</Text>
                         </View>
                       ) : (
                         <View style={styles.buttonsGroup}>
@@ -643,7 +696,7 @@ export const MedicinesScreen: React.FC = () => {
               {/* Grouped Logs List */}
               {historyLogs.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={{ fontSize: 32 }}>📋</Text>
+                  <BarChart2 size={36} color={theme.textSecondary} />
                   <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: 14 * fontScale, marginTop: 8 }]}>
                     No medication log records found for the selected time range.
                   </Text>
@@ -666,10 +719,12 @@ export const MedicinesScreen: React.FC = () => {
                         ]}
                       >
                         <View style={styles.logLeft}>
-                          <Text style={[styles.logCheckIcon, { color: log.status === 'TAKEN' ? '#10B981' : theme.danger }]}>
-                            {log.status === 'TAKEN' ? '✓' : '✕'}
-                          </Text>
-                          <View style={{ marginLeft: 8 }}>
+                          {log.status === 'TAKEN' ? (
+                            <Check size={18} color="#10B981" />
+                          ) : (
+                            <X size={18} color={theme.danger} />
+                          )}
+                          <View style={{ marginLeft: 12 }}>
                             <Text style={[styles.logMedName, { color: theme.text, fontSize: 14 * fontScale }]}>
                               {log.name}
                             </Text>
@@ -810,19 +865,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     zIndex: 100,
   },
   dropdownContainer: {
     position: 'relative',
-    width: '60%',
+    width: '55%',
   },
   dropdownSelect: {
-    height: 48,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     paddingHorizontal: 12,
-    alignSelf: 'flex-start',
+  },
+  dropdownButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   dropdownSelectText: {
     color: '#FFFFFF',
@@ -831,9 +892,9 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     position: 'absolute',
-    top: 52,
+    top: 44,
     left: 0,
-    width: 220,
+    width: '100%',
     borderRadius: 8,
     borderWidth: 1,
     shadowColor: '#000000',
@@ -844,15 +905,15 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   dropdownOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   dropdownOptionText: {
     fontSize: 14,
   },
   addBtn: {
-    width: '36%',
-    height: 48,
+    width: '40%',
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -873,13 +934,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    marginTop: 8,
+    marginTop: 12,
     textAlign: 'center',
     lineHeight: 22,
   },
   scheduleCard: {
     padding: 14,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -892,9 +958,14 @@ const styles = StyleSheet.create({
   medName: {
     fontWeight: '900',
   },
+  timeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
   medTime: {
     fontWeight: '700',
-    marginTop: 4,
+    marginLeft: 6,
   },
   actionIconsRow: {
     flexDirection: 'row',
@@ -920,6 +991,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 6,
@@ -960,6 +1033,11 @@ const styles = StyleSheet.create({
   statsCard: {
     padding: 16,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   statsTitle: {
     fontWeight: 'bold',
@@ -986,6 +1064,11 @@ const styles = StyleSheet.create({
   filterCard: {
     padding: 12,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   filterRow: {
     flexDirection: 'row',
@@ -1029,12 +1112,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-  },
-  logCheckIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    width: 20,
-    textAlign: 'center',
   },
   logMedName: {
     fontWeight: '700',

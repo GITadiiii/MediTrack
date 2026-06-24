@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { COLORS, getFontScale } from '../config/theme';
 
-export type VitalStatus = 'normal' | 'borderline' | 'critical';
+export type VitalStatus = 'normal' | 'borderline' | 'critical' | 'low_temp';
 
 interface VitalBadgeProps {
   status: VitalStatus;
@@ -30,6 +30,13 @@ export const VitalBadge: React.FC<VitalBadgeProps> = ({ status, label }) => {
           text: theme.warning,
           border: theme.warning,
           defaultLabel: 'Borderline',
+        };
+      case 'low_temp':
+        return {
+          bg: theme.primaryLight,
+          text: theme.primary,
+          border: theme.primary,
+          defaultLabel: 'Low Temp',
         };
       case 'normal':
       default:

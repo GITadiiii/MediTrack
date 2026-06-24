@@ -22,6 +22,9 @@ import { deleteLocalFile } from '../../services/fileService';
 import * as Sharing from 'expo-sharing';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { PageHeader } from '../../components/PageHeader';
+import { IconContainer } from '../../components/IconContainer';
+import { FileText, Calendar, Check, History, Share2, Trash2, Info, FileDown } from 'lucide-react-native';
 
 export const ReportsScreen: React.FC = () => {
   const { themeMode, contrastMode, fontSizeScale, user } = useAppStore();
@@ -237,157 +240,173 @@ export const ReportsScreen: React.FC = () => {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Clinical PDF Reports</Text>
-      <Text style={[styles.subtitle, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
-        Compile and export structured clinical records to share with your physicians and specialists.
-      </Text>
-
-      <Card style={styles.card}>
-        <Text style={[styles.cardTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Select Reporting Date Window</Text>
-        
-        <View style={styles.selectorRow}>
-          <TouchableOpacity
-            onPress={() => setDateRange('7')}
-            style={[
-              styles.selectorBtn,
-              {
-                backgroundColor: dateRange === '7' ? theme.primary : theme.card,
-                borderColor: theme.border,
-                borderWidth: 1,
-              },
-            ]}
-          >
-            <Text style={[styles.selectorBtnText, { color: dateRange === '7' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
-              Weekly (7d)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setDateRange('30')}
-            style={[
-              styles.selectorBtn,
-              {
-                backgroundColor: dateRange === '30' ? theme.primary : theme.card,
-                borderColor: theme.border,
-                borderWidth: 1,
-                marginLeft: 8,
-              },
-            ]}
-          >
-            <Text style={[styles.selectorBtnText, { color: dateRange === '30' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
-              Monthly (30d)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setDateRange('90')}
-            style={[
-              styles.selectorBtn,
-              {
-                backgroundColor: dateRange === '90' ? theme.primary : theme.card,
-                borderColor: theme.border,
-                borderWidth: 1,
-                marginLeft: 8,
-              },
-            ]}
-          >
-            <Text style={[styles.selectorBtnText, { color: dateRange === '90' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
-              Quarterly (90d)
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
-
-      {/* Information recap block */}
-      <Card style={styles.infoCard}>
-        <Text style={[styles.infoTitle, { color: theme.text, fontSize: 15 * fontScale }]}>📋 Included In Your PDF Report:</Text>
-        
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Patient demographics, vital statistics, conditions, and allergies.</Text>
-        </View>
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Medication compliance rate and active daily schedules.</Text>
-        </View>
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>History log records for blood pressure, sugar, SpO2, and weight.</Text>
-        </View>
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Timeline of experienced symptoms and severity charts.</Text>
-        </View>
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Consultation summaries and special clinic/hospital tags.</Text>
-        </View>
-      </Card>
-
-      {/* Export Action */}
-      <View style={styles.actionBlock}>
-        {exporting ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loaderText, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
-              Generating report...
-            </Text>
-          </View>
-        ) : (
-          <Button title="📄 Compile & Export PDF Report" onPress={handleExportReport} variant="primary" style={styles.exportBtn} />
-        )}
-      </View>
-
-      {/* Saved Reports History */}
-      <Card style={[styles.historyCard, { marginBottom: 35 }]}>
-        <Text style={[styles.historyTitle, { color: theme.text, fontSize: 16 * fontScale }]}>
-          📂 Saved Reports History
+      <PageHeader title="Clinical PDF Reports" icon={<FileText size={22} color="#FFFFFF" />} />
+      
+      <View style={{ paddingHorizontal: 16 }}>
+        <Text style={[styles.subtitle, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
+          Compile and export structured clinical records to share with your physicians and specialists.
         </Text>
-        
-        {savedReports.length === 0 ? (
-          <Text style={[styles.emptyHistoryText, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
-            No compiled clinical reports yet. Choose a date window above and click Compile to export.
-          </Text>
-        ) : (
-          savedReports.map((report) => (
-            <View
-              key={report.id}
+
+        <Card style={styles.card}>
+          <Text style={[styles.cardTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Select Reporting Date Window</Text>
+          
+          <View style={styles.selectorRow}>
+            <TouchableOpacity
+              onPress={() => setDateRange('7')}
               style={[
-                styles.historyItem,
+                styles.selectorBtn,
                 {
+                  backgroundColor: dateRange === '7' ? theme.primary : theme.card,
                   borderColor: theme.border,
-                  backgroundColor: theme.card,
+                  borderWidth: 1,
                 },
               ]}
             >
-              <View style={styles.itemInfo}>
-                <Text style={[styles.itemName, { color: theme.text, fontSize: 14 * fontScale }]} numberOfLines={1}>
-                  {report.report_name}
-                </Text>
-                <Text style={[styles.itemDate, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>
-                  Generated: {new Date(report.generated_date).toLocaleDateString()}
-                </Text>
-              </View>
-              <View style={styles.itemActions}>
-                <TouchableOpacity
-                  onPress={() => handleOpenReport(report)}
-                  style={[styles.actionBtn, { backgroundColor: theme.primary }]}
-                  accessibilityLabel={`Open ${report.report_name}`}
-                >
-                  <Text style={styles.actionBtnText}>Open</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDeleteReport(report)}
-                  style={[styles.actionBtn, styles.deleteBtn]}
-                  accessibilityLabel={`Delete ${report.report_name}`}
-                >
-                  <Text style={styles.actionBtnText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={[styles.selectorBtnText, { color: dateRange === '7' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
+                Weekly (7d)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setDateRange('30')}
+              style={[
+                styles.selectorBtn,
+                {
+                  backgroundColor: dateRange === '30' ? theme.primary : theme.card,
+                  borderColor: theme.border,
+                  borderWidth: 1,
+                  marginLeft: 8,
+                },
+              ]}
+            >
+              <Text style={[styles.selectorBtnText, { color: dateRange === '30' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
+                Monthly (30d)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setDateRange('90')}
+              style={[
+                styles.selectorBtn,
+                {
+                  backgroundColor: dateRange === '90' ? theme.primary : theme.card,
+                  borderColor: theme.border,
+                  borderWidth: 1,
+                  marginLeft: 8,
+                },
+              ]}
+            >
+              <Text style={[styles.selectorBtnText, { color: dateRange === '90' ? '#FFFFFF' : theme.text, fontSize: 14 * fontScale }]}>
+                Quarterly (90d)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* Information recap block */}
+        <Card style={styles.infoCard}>
+          <View style={styles.sectionHeaderRow}>
+            <IconContainer size={28} backgroundColor="#EFF6FF">
+              <Info size={16} color="#2563EB" />
+            </IconContainer>
+            <Text style={[styles.infoTitle, { color: theme.text, fontSize: 15 * fontScale }]}>Included In Your PDF Report</Text>
+          </View>
+          
+          <View style={styles.bulletRow}>
+            <Check size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Patient demographics, vital statistics, conditions, and allergies.</Text>
+          </View>
+          <View style={styles.bulletRow}>
+            <Check size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Medication compliance rate and active daily schedules.</Text>
+          </View>
+          <View style={styles.bulletRow}>
+            <Check size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>History log records for blood pressure, sugar, SpO2, and weight.</Text>
+          </View>
+          <View style={styles.bulletRow}>
+            <Check size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Timeline of experienced symptoms and severity charts.</Text>
+          </View>
+          <View style={styles.bulletRow}>
+            <Check size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.bulletLabel, { color: theme.text, fontSize: 14 * fontScale }]}>Consultation summaries and special clinic/hospital tags.</Text>
+          </View>
+        </Card>
+
+        {/* Export Action */}
+        <View style={styles.actionBlock}>
+          {exporting ? (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={[styles.loaderText, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
+                Generating report...
+              </Text>
             </View>
-          ))
-        )}
-      </Card>
+          ) : (
+            <Button title="Compile & Export PDF Report" onPress={handleExportReport} variant="primary" style={styles.exportBtn} />
+          )}
+        </View>
+
+        {/* Saved Reports History */}
+        <Card style={[styles.historyCard, { marginBottom: 35 }]}>
+          <View style={styles.sectionHeaderRow}>
+            <IconContainer size={28} backgroundColor="#EFF6FF">
+              <History size={16} color="#2563EB" />
+            </IconContainer>
+            <Text style={[styles.historyTitle, { color: theme.text, fontSize: 16 * fontScale }]}>
+              Saved Reports History
+            </Text>
+          </View>
+          
+          {savedReports.length === 0 ? (
+            <Text style={[styles.emptyHistoryText, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+              No compiled clinical reports yet. Choose a date window above and click Compile to export.
+            </Text>
+          ) : (
+            savedReports.map((report) => (
+              <View
+                key={report.id}
+                style={[
+                  styles.historyItem,
+                  {
+                    borderColor: theme.border,
+                    backgroundColor: theme.card,
+                  },
+                ]}
+              >
+                <IconContainer size={36} backgroundColor="#EFF6FF">
+                  <FileText size={18} color="#2563EB" />
+                </IconContainer>
+                <View style={styles.itemInfo}>
+                  <Text style={[styles.itemName, { color: theme.text, fontSize: 14 * fontScale }]} numberOfLines={1}>
+                    {report.report_name}
+                  </Text>
+                  <Text style={[styles.itemDate, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>
+                    Generated: {new Date(report.generated_date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <View style={styles.itemActions}>
+                  <TouchableOpacity
+                    onPress={() => handleOpenReport(report)}
+                    style={[styles.actionIconBtn, { backgroundColor: '#EFF6FF' }]}
+                    accessibilityLabel={`Open ${report.report_name}`}
+                  >
+                    <Share2 size={16} color="#2563EB" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteReport(report)}
+                    style={[styles.actionIconBtn, { backgroundColor: '#FEE2E2', marginLeft: 8 }]}
+                    accessibilityLabel={`Delete ${report.report_name}`}
+                  >
+                    <Trash2 size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
+      </View>
     </ScrollView>
   );
 };
@@ -395,7 +414,6 @@ export const ReportsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   title: {
     fontWeight: 'bold',
@@ -413,6 +431,18 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontWeight: 'bold',
     marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  actionIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   selectorRow: {
     flexDirection: 'row',
@@ -433,7 +463,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginLeft: 10,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -472,7 +502,7 @@ const styles = StyleSheet.create({
   },
   historyTitle: {
     fontWeight: 'bold',
-    marginBottom: 14,
+    marginLeft: 10,
   },
   emptyHistoryText: {
     textAlign: 'center',
@@ -490,6 +520,7 @@ const styles = StyleSheet.create({
   },
   itemInfo: {
     flex: 1,
+    paddingLeft: 12,
     paddingRight: 10,
   },
   itemName: {
