@@ -974,6 +974,34 @@ export const getSymptomsHistory = (userId: number, limit = 50): SymptomDB[] => {
   }
 };
 
+export const updateSymptomLog = (symptom: SymptomDB) => {
+  if (Platform.OS === 'web') {
+    const index = webSymptoms.findIndex(s => s.id === symptom.id);
+    if (index !== -1) {
+      webSymptoms[index] = symptom;
+      saveWebData('webSymptoms', webSymptoms);
+    }
+    return;
+  }
+
+  const db = getDB();
+  db.runSync(
+    'UPDATE symptoms SET name = ?, severity = ?, notes = ?, photo_uri = ? WHERE id = ?;',
+    [symptom.name, symptom.severity, symptom.notes, symptom.photo_uri, symptom.id]
+  );
+};
+
+export const deleteSymptomLog = (id: number) => {
+  if (Platform.OS === 'web') {
+    webSymptoms = webSymptoms.filter(s => s.id !== id);
+    saveWebData('webSymptoms', webSymptoms);
+    return;
+  }
+
+  const db = getDB();
+  db.runSync('DELETE FROM symptoms WHERE id = ?;', [id]);
+};
+
 // --- DOCTOR VISITS OPERATIONS ---
 
 export const addDoctorVisit = (visit: Omit<DoctorVisitDB, 'id'>) => {

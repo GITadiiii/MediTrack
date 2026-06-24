@@ -242,8 +242,10 @@ export const VitalsScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Title Header with Add Button in one row */}
-      <View style={styles.headerRow}>
-        <PageHeader title="Vitals Log" icon={<HeartPulse color="#FFFFFF" size={20} />} />
+      <PageHeader title="Vitals Log" icon={<HeartPulse color="#FFFFFF" size={20} />} />
+
+      <View style={styles.topRow}>
+        <View style={{ flex: 1 }} />
         <TouchableOpacity
           onPress={handleOpenAdd}
           style={[styles.addBtn, { backgroundColor: theme.primary }]}
@@ -497,11 +499,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerRow: {
+  topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   addBtn: {
     paddingHorizontal: 16,
@@ -588,7 +591,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formScroll: {
-    paddingBottom: 24,
+    paddingBottom: 60,
   },
   formRow: {
     flexDirection: 'row',

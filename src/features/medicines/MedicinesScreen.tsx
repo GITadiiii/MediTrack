@@ -39,8 +39,6 @@ export const MedicinesScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'schedule' | 'history'>('schedule');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [dropdownAnimation] = useState(new Animated.Value(0));
 
   // Medications list & Today's Schedule Checklist
   const [medsList, setMedsList] = useState<MedicationDB[]>([]);
@@ -193,27 +191,7 @@ export const MedicinesScreen: React.FC = () => {
     }
   };
 
-  const toggleDropdown = () => {
-    if (dropdownOpen) {
-      Animated.timing(dropdownAnimation, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start(() => setDropdownOpen(false));
-    } else {
-      setDropdownOpen(true);
-      Animated.timing(dropdownAnimation, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
 
-  const handleSelectViewMode = (mode: 'schedule' | 'history') => {
-    setViewMode(mode);
-    toggleDropdown();
-  };
 
   const handleLogDose = (medId: number, time: string, status: 'TAKEN' | 'SKIPPED') => {
     if (!user) return;
@@ -447,24 +425,7 @@ export const MedicinesScreen: React.FC = () => {
     return groups;
   };
 
-  // Dropdown animated style
-  const dropdownMenuStyle = {
-    opacity: dropdownAnimation,
-    transform: [
-      {
-        scaleY: dropdownAnimation.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.85, 1],
-        }),
-      },
-      {
-        translateY: dropdownAnimation.interpolate({
-          inputRange: [0, 1],
-          outputRange: [-10, 0],
-        }),
-      },
-    ],
-  };
+
 
   const historyGrouped = groupLogsByDate(historyLogs);
 
@@ -473,65 +434,46 @@ export const MedicinesScreen: React.FC = () => {
       {/* Reusable premium page header */}
       <PageHeader title="Medicines" icon={<Pill color="#FFFFFF" size={20} />} />
 
-      {/* Dynamic Header row inline dropdown and add routine */}
+      {/* Dynamic Header row tab container and add routine */}
       <View style={styles.topRow}>
-        <View style={styles.dropdownContainer}>
+        <View style={[styles.tabContainer, { borderColor: theme.primary }]}>
           <TouchableOpacity
-            onPress={toggleDropdown}
-            style={[styles.dropdownSelect, { backgroundColor: theme.primary }]}
-            activeOpacity={0.85}
+            onPress={() => setViewMode('schedule')}
+            style={[
+              styles.tabBtn,
+              viewMode === 'schedule'
+                ? { backgroundColor: theme.primary }
+                : { backgroundColor: theme.card },
+            ]}
           >
-            <View style={styles.dropdownButtonInner}>
-              <Text style={styles.dropdownSelectText}>
-                {viewMode === 'schedule' ? 'My Schedules' : 'My History'}
-              </Text>
-              <ChevronDown size={16} color="#FFFFFF" />
-            </View>
+            <Text
+              style={[
+                styles.tabBtnText,
+                { color: viewMode === 'schedule' ? '#FFFFFF' : theme.textSecondary },
+              ]}
+            >
+              Schedules
+            </Text>
           </TouchableOpacity>
-
-          {dropdownOpen && (
-            <Animated.View style={[styles.dropdownMenu, dropdownMenuStyle, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <TouchableOpacity
-                onPress={() => handleSelectViewMode('schedule')}
-                style={[
-                  styles.dropdownOption,
-                  viewMode === 'schedule' && { backgroundColor: theme.background },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    {
-                      color: theme.text,
-                      fontWeight: viewMode === 'schedule' ? 'bold' : '500',
-                    },
-                  ]}
-                >
-                  My Schedules
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSelectViewMode('history')}
-                style={[
-                  styles.dropdownOption,
-                  viewMode === 'history' && { backgroundColor: theme.background },
-                  { borderTopWidth: 1, borderTopColor: theme.border },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    {
-                      color: theme.text,
-                      fontWeight: viewMode === 'history' ? 'bold' : '500',
-                    },
-                  ]}
-                >
-                  My History
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          <TouchableOpacity
+            onPress={() => setViewMode('history')}
+            style={[
+              styles.tabBtn,
+              viewMode === 'history'
+                ? { backgroundColor: theme.primary }
+                : { backgroundColor: theme.card },
+              { borderLeftWidth: 1, borderLeftColor: theme.primary },
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabBtnText,
+                { color: viewMode === 'history' ? '#FFFFFF' : theme.textSecondary },
+              ]}
+            >
+              History
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -882,47 +824,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     zIndex: 100,
   },
-  dropdownContainer: {
-    position: 'relative',
+  tabContainer: {
+    flexDirection: 'row',
     width: '55%',
-  },
-  dropdownSelect: {
     height: 40,
     borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  dropdownButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  dropdownSelectText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 44,
-    left: 0,
-    width: '100%',
-    borderRadius: 8,
     borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
+    overflow: 'hidden',
   },
-  dropdownOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+  tabBtn: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
   },
-  dropdownOptionText: {
-    fontSize: 14,
+  tabBtnText: {
+    fontWeight: 'bold',
+    fontSize: 13,
   },
   addBtn: {
     width: '40%',
@@ -1159,7 +1077,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formScroll: {
-    paddingBottom: 24,
+    paddingBottom: 60,
   },
   formRow: {
     flexDirection: 'row',

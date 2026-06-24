@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
-import { Activity, Clock, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Activity, Clock, Camera, Image as ImageIcon, Pencil, Trash2 } from 'lucide-react-native';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
-import { getSymptomsHistory, addSymptomLog, SymptomDB } from '../../database/dbHelpers';
+import { getSymptomsHistory, addSymptomLog, updateSymptomLog, deleteSymptomLog, SymptomDB } from '../../database/dbHelpers';
+
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 import { saveFileLocally } from '../../services/fileService';
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
@@ -24,6 +32,7 @@ export const SymptomsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [symptomLogs, setSymptomLogs] = useState<SymptomDB[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingSymptom, setEditingSymptom] = useState<SymptomDB | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -36,6 +45,49 @@ export const SymptomsScreen: React.FC = () => {
       loadSymptoms();
     }
   }, [isFocused, user]);
+
+  const handleOpenAdd = () => {
+    setEditingSymptom(null);
+    setName('');
+    setSeverity(5);
+    setNotes('');
+    setPhotoUri(null);
+    setModalVisible(true);
+  };
+
+  const handleOpenEdit = (symptom: SymptomDB) => {
+    setEditingSymptom(symptom);
+    setName(symptom.name);
+    setSeverity(symptom.severity);
+    setNotes(symptom.notes || '');
+    setPhotoUri(symptom.photo_uri);
+    setModalVisible(true);
+  };
+
+  const handleDeleteSymptom = (symptomId: number) => {
+    const executeDelete = () => {
+      try {
+        deleteSymptomLog(symptomId);
+        showAlert('Success', 'Symptom log entry deleted successfully.');
+        loadSymptoms();
+      } catch (error) {
+        console.error('Delete symptom error:', error);
+        showAlert('Error', 'Unable to delete symptom entry.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete Symptom Entry?\n\nThis action cannot be undone.')) {
+        executeDelete();
+      }
+      return;
+    }
+
+    Alert.alert('Delete Symptom Entry?', 'This action cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: executeDelete },
+    ]);
+  };
 
   const loadSymptoms = () => {
     if (!user) return;
@@ -96,27 +148,44 @@ export const SymptomsScreen: React.FC = () => {
     if (!user) return;
 
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter a symptom name.');
+      showAlert('Validation Error', 'Please enter a symptom name.');
       return;
     }
 
-    addSymptomLog({
-      user_id: user.id,
-      name: name.trim(),
-      severity,
-      notes: notes.trim() || null,
-      photo_uri: photoUri,
-    });
+    try {
+      if (editingSymptom) {
+        updateSymptomLog({
+          id: editingSymptom.id,
+          user_id: user.id,
+          name: name.trim(),
+          severity,
+          notes: notes.trim() || null,
+          photo_uri: photoUri,
+          timestamp: editingSymptom.timestamp,
+        });
+        showAlert('Saved', 'Symptom log entry updated successfully.');
+      } else {
+        addSymptomLog({
+          user_id: user.id,
+          name: name.trim(),
+          severity,
+          notes: notes.trim() || null,
+          photo_uri: photoUri,
+        });
+        showAlert('Saved', 'Symptom log entry added successfully.');
+      }
 
-    Alert.alert('Saved', 'Symptom log entry added successfully.');
-    setModalVisible(false);
-    
-    setName('');
-    setSeverity(5);
-    setNotes('');
-    setPhotoUri(null);
-
-    loadSymptoms();
+      setModalVisible(false);
+      setName('');
+      setSeverity(5);
+      setNotes('');
+      setPhotoUri(null);
+      setEditingSymptom(null);
+      loadSymptoms();
+    } catch (error) {
+      console.error('Save symptom error:', error);
+      showAlert('Error', 'Unable to save symptom entry.');
+    }
   };
 
   if (loading) {
@@ -129,11 +198,12 @@ export const SymptomsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header with log button */}
-      <View style={styles.headerRow}>
-        <PageHeader title="Symptom Diary" icon={<Activity color="#FFFFFF" size={20} />} />
+      <PageHeader title="Symptom Diary" icon={<Activity color="#FFFFFF" size={20} />} />
+
+      <View style={styles.topRow}>
+        <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => setModalVisible(true)}
+          onPress={handleOpenAdd}
           style={[styles.addBtn, { backgroundColor: theme.primary }]}
           activeOpacity={0.8}
         >
@@ -167,8 +237,20 @@ export const SymptomsScreen: React.FC = () => {
                 {/* Card details */}
                 <Card style={styles.symptomCard}>
                   <View style={styles.cardHeader}>
-                    <Text style={[styles.symptomName, { color: theme.text, fontSize: 16 * fontScale }]}>{log.name}</Text>
-                    <VitalBadge status={badgeStatus} label={`Severity ${log.severity}/10`} />
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.symptomName, { color: theme.text, fontSize: 16 * fontScale }]} numberOfLines={1}>
+                        {log.name}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => handleOpenEdit(log)} style={{ padding: 4, marginRight: 10 }} accessibilityLabel="Edit symptom log">
+                        <Pencil size={16} color={theme.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteSymptom(log.id)} style={{ padding: 4, marginRight: 8 }} accessibilityLabel="Delete symptom log">
+                        <Trash2 size={16} color={theme.danger} />
+                      </TouchableOpacity>
+                      <VitalBadge status={badgeStatus} label={`Severity ${log.severity}/10`} />
+                    </View>
                   </View>
                   
                   <View style={styles.timestampRow}>
@@ -198,7 +280,9 @@ export const SymptomsScreen: React.FC = () => {
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 0 }]}>
-            <Text style={[styles.modalTitle, { color: theme.text, fontSize: 20 * fontScale }]}>Log New Symptom</Text>
+            <Text style={[styles.modalTitle, { color: theme.text, fontSize: 20 * fontScale }]}>
+              {editingSymptom ? 'Edit Symptom Entry' : 'Log New Symptom'}
+            </Text>
 
             <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
               <Input
@@ -280,7 +364,7 @@ export const SymptomsScreen: React.FC = () => {
               )}
 
               <View style={{ marginTop: 24 }}>
-                <Button title="Save Log Entry" onPress={handleSaveSymptom} variant="primary" />
+                <Button title={editingSymptom ? 'Save Changes' : 'Save Log Entry'} onPress={handleSaveSymptom} variant="primary" />
                 <Button
                   title="Cancel"
                   onPress={() => setModalVisible(false)}
@@ -305,11 +389,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerRow: {
+  topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   addBtn: {
     paddingHorizontal: 16,
@@ -417,7 +502,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formScroll: {
-    paddingBottom: 24,
+    paddingBottom: 60,
   },
   sliderLabel: {
     fontWeight: 'bold',
