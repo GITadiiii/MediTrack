@@ -43,6 +43,9 @@ assert(criticalBP1.status === 'critical' && criticalBP1.text === 'Critical High'
 const criticalBP2 = evaluateBloodPressure(115, 95);
 assert(criticalBP2.status === 'critical' && criticalBP2.text === 'Critical High', '115/95 mmHg should be evaluated as Critical High (diastolic high)');
 
+const lowBP = evaluateBloodPressure(85, 55);
+assert(lowBP.status === 'critical' && lowBP.text === 'Critical Low', '85/55 mmHg should be evaluated as Critical Low');
+
 
 // 2. Blood Sugar Threshold Tests
 console.log('\nTesting Blood Sugar thresholds...');

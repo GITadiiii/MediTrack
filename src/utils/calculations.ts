@@ -3,9 +3,13 @@ import { VitalStatus } from '../components/VitalBadge';
 // --- VITALS THRESHOLD LOGIC ---
 
 export const evaluateBloodPressure = (systolic: number, diastolic: number): { status: VitalStatus; text: string } => {
-  // Critical: >=140 systolic OR >=90 diastolic
+  // Critical High: >=140 systolic OR >=90 diastolic
   if (systolic >= 140 || diastolic >= 90) {
     return { status: 'critical', text: 'Critical High' };
+  }
+  // Critical Low: <90 systolic OR <60 diastolic
+  if (systolic < 90 || diastolic < 60) {
+    return { status: 'critical', text: 'Critical Low' };
   }
   // Borderline: 121-139 systolic OR 81-89 diastolic
   if ((systolic >= 121 && systolic <= 139) || (diastolic >= 81 && diastolic <= 89)) {

@@ -368,12 +368,12 @@ export const loginWithPin = (email: string, pin: string): UserSession | null => 
 
 export const checkUserExists = (): UserDB | null => {
   if (Platform.OS === 'web') {
-    return webUsers.length > 0 ? webUsers[0] : null;
+    return webUsers.length > 0 ? webUsers[webUsers.length - 1] : null;
   }
 
   const db = getDB();
   try {
-    return db.getFirstSync<UserDB>('SELECT * FROM users LIMIT 1;');
+    return db.getFirstSync<UserDB>('SELECT * FROM users ORDER BY id DESC LIMIT 1;');
   } catch (error) {
     console.error('checkUserExists error:', error);
     return null;
