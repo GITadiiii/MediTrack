@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { HeartPulse, Calendar, Plus, Activity, Thermometer, Wind, Droplet, Scale } from 'lucide-react-native';
+import { HeartPulse, Calendar, Plus, Activity, Thermometer, Wind, Droplet, Scale, Pencil, Trash2 } from 'lucide-react-native';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
-import { getVitalsHistory, addVitalLog, VitalDB } from '../../database/dbHelpers';
+import { getVitalsHistory, addVitalLog, updateVitalLog, deleteVitalLog, VitalDB } from '../../database/dbHelpers';
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { VitalBadge, VitalStatus } from '../../components/VitalBadge';
 import { PageHeader } from '../../components/PageHeader';
 import { IconContainer } from '../../components/IconContainer';
+
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 import {
   evaluateBloodPressure,
   evaluateBloodSugar,
@@ -29,6 +37,7 @@ export const VitalsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [vitalsList, setVitalsList] = useState<VitalDB[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingVital, setEditingVital] = useState<VitalDB | null>(null);
 
   // Form inputs state
   const [systolic, setSystolic] = useState('');
@@ -59,6 +68,57 @@ export const VitalsScreen: React.FC = () => {
     }
   };
 
+  const handleOpenAdd = () => {
+    setEditingVital(null);
+    setSystolic('');
+    setDiastolic('');
+    setSugarFasting('');
+    setSugarPostMeal('');
+    setTemperature('');
+    setWeight('');
+    setSpo2('');
+    setHeartRate('');
+    setModalVisible(true);
+  };
+
+  const handleOpenEdit = (vital: VitalDB) => {
+    setEditingVital(vital);
+    setSystolic(vital.systolic !== null ? vital.systolic.toString() : '');
+    setDiastolic(vital.diastolic !== null ? vital.diastolic.toString() : '');
+    setSugarFasting(vital.blood_sugar_fasting !== null ? vital.blood_sugar_fasting.toString() : '');
+    setSugarPostMeal(vital.blood_sugar_post_meal !== null ? vital.blood_sugar_post_meal.toString() : '');
+    setTemperature(vital.temperature !== null ? vital.temperature.toString() : '');
+    setWeight(vital.weight !== null ? vital.weight.toString() : '');
+    setSpo2(vital.spo2 !== null ? vital.spo2.toString() : '');
+    setHeartRate(vital.heart_rate !== null ? vital.heart_rate.toString() : '');
+    setModalVisible(true);
+  };
+
+  const handleDeleteVital = (vitalId: number) => {
+    const executeDelete = () => {
+      try {
+        deleteVitalLog(vitalId);
+        showAlert('Success', 'Vital log deleted successfully.');
+        loadVitals();
+      } catch (error) {
+        console.error('Delete vital log error:', error);
+        showAlert('Error', 'Unable to delete vital log.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete Vital Log?\n\nThis action cannot be undone.')) {
+        executeDelete();
+      }
+      return;
+    }
+
+    Alert.alert('Delete Vital Log?', 'This action cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: executeDelete },
+    ]);
+  };
+
   const handleSaveVitals = () => {
     if (!user) return;
 
@@ -72,7 +132,7 @@ export const VitalsScreen: React.FC = () => {
       !spo2 &&
       !heartRate
     ) {
-      Alert.alert('Empty Form', 'Please enter at least one vital parameter value to save a log.');
+      showAlert('Empty Form', 'Please enter at least one vital parameter value to save a log.');
       return;
     }
 
@@ -86,19 +146,36 @@ export const VitalsScreen: React.FC = () => {
     const pBpm = heartRate ? parseFloat(heartRate) : null;
 
     try {
-      addVitalLog({
-        user_id: user.id,
-        systolic: pSystolic,
-        diastolic: pDiastolic,
-        blood_sugar_fasting: pSugarFasting,
-        blood_sugar_post_meal: pSugarPostMeal,
-        temperature: pTemp,
-        weight: pWeight,
-        spo2: pSpo2,
-        heart_rate: pBpm,
-      });
+      if (editingVital) {
+        updateVitalLog({
+          id: editingVital.id,
+          user_id: user.id,
+          systolic: pSystolic,
+          diastolic: pDiastolic,
+          blood_sugar_fasting: pSugarFasting,
+          blood_sugar_post_meal: pSugarPostMeal,
+          temperature: pTemp,
+          weight: pWeight,
+          spo2: pSpo2,
+          heart_rate: pBpm,
+          timestamp: editingVital.timestamp,
+        });
+        showAlert('Saved', 'Your vitals have been updated successfully.');
+      } else {
+        addVitalLog({
+          user_id: user.id,
+          systolic: pSystolic,
+          diastolic: pDiastolic,
+          blood_sugar_fasting: pSugarFasting,
+          blood_sugar_post_meal: pSugarPostMeal,
+          temperature: pTemp,
+          weight: pWeight,
+          spo2: pSpo2,
+          heart_rate: pBpm,
+        });
+        showAlert('Saved', 'Your vitals have been logged successfully.');
+      }
 
-      Alert.alert('Saved', 'Your vitals have been logged successfully.');
       setModalVisible(false);
       
       setSystolic('');
@@ -109,11 +186,12 @@ export const VitalsScreen: React.FC = () => {
       setWeight('');
       setSpo2('');
       setHeartRate('');
+      setEditingVital(null);
       
       loadVitals();
     } catch (error) {
       console.error('Vitals save error:', error);
-      Alert.alert('Error', 'Unable to save vitals log. Please verify all required fields.');
+      showAlert('Error', 'Unable to save vitals log. Please verify all required fields.');
     }
   };
 
@@ -167,7 +245,7 @@ export const VitalsScreen: React.FC = () => {
       <View style={styles.headerRow}>
         <PageHeader title="Vitals Log" icon={<HeartPulse color="#FFFFFF" size={20} />} />
         <TouchableOpacity
-          onPress={() => setModalVisible(true)}
+          onPress={handleOpenAdd}
           style={[styles.addBtn, { backgroundColor: theme.primary }]}
           activeOpacity={0.8}
         >
@@ -197,10 +275,20 @@ export const VitalsScreen: React.FC = () => {
               <Card key={item.id} style={styles.vitalCard}>
                 {/* Date Header */}
                 <View style={styles.cardHeader}>
-                  <Calendar size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />
-                  <Text style={[styles.cardTime, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
-                    {formatDateTime(item.timestamp)}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Calendar size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />
+                    <Text style={[styles.cardTime, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>
+                      {formatDateTime(item.timestamp)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => handleOpenEdit(item)} style={{ padding: 4, marginRight: 12 }} accessibilityLabel="Edit vitals log">
+                      <Pencil size={16} color={theme.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteVital(item.id)} style={{ padding: 4 }} accessibilityLabel="Delete vitals log">
+                      <Trash2 size={16} color={theme.danger} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Grid layout for parameters */}
@@ -302,7 +390,9 @@ export const VitalsScreen: React.FC = () => {
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 0 }]}>
-            <Text style={[styles.modalTitle, { color: theme.text, fontSize: 20 * fontScale }]}>Log Today's Vitals</Text>
+            <Text style={[styles.modalTitle, { color: theme.text, fontSize: 20 * fontScale }]}>
+              {editingVital ? 'Edit Vitals Log' : "Log Today's Vitals"}
+            </Text>
 
             <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
               <View style={styles.formRow}>
@@ -382,7 +472,7 @@ export const VitalsScreen: React.FC = () => {
               </View>
 
               <View style={{ marginTop: 24 }}>
-                <Button title="Save Log Record" onPress={handleSaveVitals} variant="primary" />
+                <Button title={editingVital ? 'Save Changes' : 'Save Log Record'} onPress={handleSaveVitals} variant="primary" />
                 <Button
                   title="Cancel"
                   onPress={() => setModalVisible(false)}
@@ -446,6 +536,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',

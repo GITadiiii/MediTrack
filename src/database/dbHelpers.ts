@@ -629,11 +629,13 @@ export const deleteEmergencyContact = (id: number) => {
 
 export const addVitalLog = (vital: Omit<VitalDB, 'id' | 'timestamp'>) => {
   if (Platform.OS === 'web') {
+    const newId = webVitals.length > 0 ? Math.max(...webVitals.map(v => v.id)) + 1 : 1;
     webVitals.unshift({
-      id: webVitals.length + 1,
+      id: newId,
       ...vital,
       timestamp: new Date().toISOString()
     });
+    saveWebData('webVitals', webVitals);
     return;
   }
 
@@ -653,6 +655,48 @@ export const addVitalLog = (vital: Omit<VitalDB, 'id' | 'timestamp'>) => {
       vital.heart_rate,
     ]
   );
+};
+
+
+export const updateVitalLog = (vital: VitalDB) => {
+  if (Platform.OS === 'web') {
+    const index = webVitals.findIndex(v => v.id === vital.id);
+    if (index !== -1) {
+      webVitals[index] = vital;
+      saveWebData('webVitals', webVitals);
+    }
+    return;
+  }
+
+  const db = getDB();
+  db.runSync(
+    `UPDATE vitals 
+     SET systolic = ?, diastolic = ?, blood_sugar_fasting = ?, blood_sugar_post_meal = ?, 
+         temperature = ?, weight = ?, spo2 = ?, heart_rate = ?
+     WHERE id = ?;`,
+    [
+      vital.systolic,
+      vital.diastolic,
+      vital.blood_sugar_fasting,
+      vital.blood_sugar_post_meal,
+      vital.temperature,
+      vital.weight,
+      vital.spo2,
+      vital.heart_rate,
+      vital.id,
+    ]
+  );
+};
+
+export const deleteVitalLog = (id: number) => {
+  if (Platform.OS === 'web') {
+    webVitals = webVitals.filter(v => v.id !== id);
+    saveWebData('webVitals', webVitals);
+    return;
+  }
+
+  const db = getDB();
+  db.runSync('DELETE FROM vitals WHERE id = ?;', [id]);
 };
 
 export const getVitalsHistory = (userId: number, limit = 50): VitalDB[] => {
@@ -699,11 +743,12 @@ export const getVitalsRange = (userId: number, days: number): VitalDB[] => {
 
 export const addMedication = (med: Omit<MedicationDB, 'id'>): number => {
   if (Platform.OS === 'web') {
-    const newId = webMedications.length + 1;
+    const newId = webMedications.length > 0 ? Math.max(...webMedications.map(m => m.id)) + 1 : 1;
     webMedications.push({
       id: newId,
       ...med
     });
+    saveWebData('webMedications', webMedications);
     return newId;
   }
 
@@ -734,6 +779,7 @@ export const updateMedication = (med: MedicationDB) => {
     const index = webMedications.findIndex(m => m.id === med.id);
     if (index !== -1) {
       webMedications[index] = med;
+      saveWebData('webMedications', webMedications);
     }
     return;
   }
@@ -764,6 +810,7 @@ export const updateMedication = (med: MedicationDB) => {
 export const deleteMedication = (id: number) => {
   if (Platform.OS === 'web') {
     webMedications = webMedications.filter(m => m.id !== id);
+    saveWebData('webMedications', webMedications);
     return;
   }
 
@@ -787,18 +834,21 @@ export const getMedications = (userId: number): MedicationDB[] => {
 
 export const logMedicationDose = (medId: number, scheduledTime: string, status: 'TAKEN' | 'SKIPPED' | 'MISSED') => {
   if (Platform.OS === 'web') {
+    const newId = webMedicationLogs.length > 0 ? Math.max(...webMedicationLogs.map(l => l.id)) + 1 : 1;
     webMedicationLogs.unshift({
-      id: webMedicationLogs.length + 1,
+      id: newId,
       medication_id: medId,
       scheduled_time: scheduledTime,
       status,
       logged_at: new Date().toISOString()
     });
-
+    saveWebData('webMedicationLogs', webMedicationLogs);
+ 
     if (status === 'TAKEN') {
       const med = webMedications.find(m => m.id === medId);
       if (med) {
         med.stock_remaining = Math.max(0, med.stock_remaining - 1);
+        saveWebData('webMedications', webMedications);
       }
     }
     return;
@@ -896,6 +946,7 @@ export const addSymptomLog = (symptom: Omit<SymptomDB, 'id' | 'timestamp'>) => {
       ...symptom,
       timestamp: new Date().toISOString()
     });
+    saveWebData('webSymptoms', webSymptoms);
     return;
   }
 
@@ -931,6 +982,7 @@ export const addDoctorVisit = (visit: Omit<DoctorVisitDB, 'id'>) => {
       id: webDoctorVisits.length + 1,
       ...visit
     });
+    saveWebData('webDoctorVisits', webDoctorVisits);
     return;
   }
 
@@ -956,6 +1008,7 @@ export const updateDoctorVisit = (visit: DoctorVisitDB) => {
     const index = webDoctorVisits.findIndex(v => v.id === visit.id);
     if (index !== -1) {
       webDoctorVisits[index] = visit;
+      saveWebData('webDoctorVisits', webDoctorVisits);
     }
     return;
   }
@@ -1004,6 +1057,7 @@ export const addPrescription = (presc: Omit<PrescriptionDB, 'id' | 'uploaded_at'
       ...presc,
       uploaded_at: new Date().toISOString()
     });
+    saveWebData('webPrescriptions', webPrescriptions);
     return;
   }
 
@@ -1043,7 +1097,10 @@ export const getPrescriptions = (userId: number): PrescriptionDB[] => {
 export const renamePrescription = (id: number, newName: string) => {
   if (Platform.OS === 'web') {
     const presc = webPrescriptions.find(p => p.id === id);
-    if (presc) presc.file_name = newName;
+    if (presc) {
+      presc.file_name = newName;
+      saveWebData('webPrescriptions', webPrescriptions);
+    }
     return;
   }
 
@@ -1054,6 +1111,7 @@ export const renamePrescription = (id: number, newName: string) => {
 export const deletePrescription = (id: number) => {
   if (Platform.OS === 'web') {
     webPrescriptions = webPrescriptions.filter(p => p.id !== id);
+    saveWebData('webPrescriptions', webPrescriptions);
     return;
   }
 
@@ -1066,6 +1124,7 @@ export const updateUserPin = (userId: number, newPin: string): boolean => {
     const user = webUsers.find(u => u.id === userId);
     if (user) {
       user.pin_hash = newPin;
+      saveWebData('webUsers', webUsers);
       return true;
     }
     return false;
@@ -1177,6 +1236,16 @@ export const resetDatabase = () => {
     webPrescriptions = [];
     webReports = [];
     initWebVitals();
+    saveWebData('webUsers', webUsers);
+    saveWebData('webMedicalProfiles', webMedicalProfiles);
+    saveWebData('webEmergencyContacts', webEmergencyContacts);
+    saveWebData('webVitals', webVitals);
+    saveWebData('webMedications', webMedications);
+    saveWebData('webMedicationLogs', webMedicationLogs);
+    saveWebData('webSymptoms', webSymptoms);
+    saveWebData('webDoctorVisits', webDoctorVisits);
+    saveWebData('webPrescriptions', webPrescriptions);
+    saveWebData('webReports', webReports);
     return;
   }
 
@@ -1208,6 +1277,7 @@ export const addReport = (userId: number, reportName: string, filePath: string):
       file_path: filePath,
       generated_date: dateStr,
     });
+    saveWebData('webReports', webReports);
     return newId;
   }
 
@@ -1244,6 +1314,7 @@ export const getReports = (userId: number): ReportDB[] => {
 export const deleteReport = (id: number) => {
   if (Platform.OS === 'web') {
     webReports = webReports.filter(r => r.id !== id);
+    saveWebData('webReports', webReports);
     return;
   }
 

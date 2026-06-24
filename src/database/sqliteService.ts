@@ -169,10 +169,62 @@ export const initDatabase = () => {
     );
   `);
 
+  // Run any necessary database migrations for older schemas
+  runMigrations(db);
+
   // Seed default data if users table is empty
   const count = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM users;');
   if (count && count.count === 0) {
     seedDefaultData(db);
+  }
+};
+
+const runMigrations = (db: SQLite.SQLiteDatabase) => {
+  // 1. Audit medications table
+  try {
+    const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(medications);');
+    const columnNames = columns.map(c => c.name);
+    
+    if (!columnNames.includes('stock_remaining')) {
+      db.execSync('ALTER TABLE medications ADD COLUMN stock_remaining REAL NOT NULL DEFAULT 0;');
+      console.log('Migration: Added stock_remaining to medications');
+    }
+    if (!columnNames.includes('refill_alert_threshold')) {
+      db.execSync('ALTER TABLE medications ADD COLUMN refill_alert_threshold REAL DEFAULT 0;');
+      console.log('Migration: Added refill_alert_threshold to medications');
+    }
+    if (!columnNames.includes('reminders_enabled')) {
+      db.execSync('ALTER TABLE medications ADD COLUMN reminders_enabled INTEGER DEFAULT 1;');
+      console.log('Migration: Added reminders_enabled to medications');
+    }
+  } catch (err) {
+    console.error('Migration error on medications table:', err);
+  }
+
+  // 2. Audit vitals table
+  try {
+    const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(vitals);');
+    const columnNames = columns.map(c => c.name);
+    
+    const expectedVitals = [
+      { name: 'systolic', type: 'REAL' },
+      { name: 'diastolic', type: 'REAL' },
+      { name: 'blood_sugar_fasting', type: 'REAL' },
+      { name: 'blood_sugar_post_meal', type: 'REAL' },
+      { name: 'temperature', type: 'REAL' },
+      { name: 'weight', type: 'REAL' },
+      { name: 'spo2', type: 'REAL' },
+      { name: 'heart_rate', type: 'REAL' }
+    ];
+    
+    for (const v of expectedVitals) {
+      if (!columnNames.includes(v.name)) {
+        db.execSync(`ALTER TABLE vitals ADD COLUMN ${v.name} ${v.type};`);
+        console.log(`Migration: Added ${v.name} to vitals`);
+      }
+    }
+  } catch (err) {
+    console.error('Migration error on vitals table:', err);
   }
 };
 

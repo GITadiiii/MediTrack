@@ -23,6 +23,14 @@ import { Button } from '../../components/Button';
 import { PageHeader } from '../../components/PageHeader';
 import { IconContainer } from '../../components/IconContainer';
 
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 export const MedicinesScreen: React.FC = () => {
   const isFocused = useIsFocused();
   const { themeMode, contrastMode, fontSizeScale, user, addNotification } = useAppStore();
@@ -227,7 +235,7 @@ export const MedicinesScreen: React.FC = () => {
     }
 
     logMedicationDose(medId, scheduledTime, status);
-    Alert.alert('Medication Logged', `Marked dose scheduled at ${time} as ${status.toLowerCase()}.`);
+    showAlert('Medication Logged', `Marked dose scheduled at ${time} as ${status.toLowerCase()}.`);
     loadTodaySchedule();
   };
 
@@ -274,14 +282,14 @@ export const MedicinesScreen: React.FC = () => {
     if (!user) return;
 
     if (!name.trim() || !dosage.trim() || !unit.trim() || !startDate.trim() || !endDate.trim() || !stockRemaining.trim()) {
-      Alert.alert('Validation Error', 'Please fill in all mandatory medication details.');
+      showAlert('Validation Error', 'Please fill in all mandatory medication details.');
       return;
     }
 
     const pStock = parseFloat(stockRemaining);
     const pThreshold = refillThreshold ? parseFloat(refillThreshold) : 0;
     if (isNaN(pStock) || isNaN(pThreshold)) {
-      Alert.alert('Validation Error', 'Stock values must be numbers.');
+      showAlert('Validation Error', 'Stock values must be numbers.');
       return;
     }
 
@@ -298,7 +306,7 @@ export const MedicinesScreen: React.FC = () => {
       .filter((t) => /^\d{2}:\d{2}$/.test(t));
 
     if (times.length === 0) {
-      Alert.alert('Validation Error', 'Please specify at least one time in HH:MM format (e.g. 08:00).');
+      showAlert('Validation Error', 'Please specify at least one time in HH:MM format (e.g. 08:00).');
       return;
     }
 
@@ -337,12 +345,12 @@ export const MedicinesScreen: React.FC = () => {
         }
         
         if (remindersEnabled && !remindersScheduled) {
-          Alert.alert(
+          showAlert(
             'Saved with Warnings',
             'Medication updated, but reminders could not be set. Please check notification settings.'
           );
         } else {
-          Alert.alert('Success', 'Medication updated successfully.');
+          showAlert('Success', 'Medication updated successfully.');
         }
       } else {
         const insertId = addMedication(medData);
@@ -357,12 +365,12 @@ export const MedicinesScreen: React.FC = () => {
         }
         
         if (remindersEnabled && !remindersScheduled) {
-          Alert.alert(
+          showAlert(
             'Saved with Warnings',
             'Medication scheduled, but reminders could not be set. Please check notification settings.'
           );
         } else {
-          Alert.alert('Success', 'Medication scheduled successfully.');
+          showAlert('Success', 'Medication scheduled successfully.');
         }
       }
 
@@ -375,25 +383,30 @@ export const MedicinesScreen: React.FC = () => {
     } catch (e) {
       console.log("SQLite Error:", e);
       console.error(e);
-      Alert.alert('Error', 'Unable to save medication. Please verify all required fields.');
+      showAlert('Error', 'Unable to save medication. Please verify all required fields.');
     }
   };
 
   const handleDeleteMed = (id: number) => {
+    const executeDelete = () => {
+      deleteMedication(id);
+      if (viewMode === 'schedule') {
+        loadTodaySchedule();
+      } else {
+        loadHistory();
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete Medication?\n\nAre you sure you want to delete this medication and all scheduled reminders?')) {
+        executeDelete();
+      }
+      return;
+    }
+
     Alert.alert('Delete Medication', 'Are you sure you want to delete this medication and all scheduled reminders?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteMedication(id);
-          if (viewMode === 'schedule') {
-            loadTodaySchedule();
-          } else {
-            loadHistory();
-          }
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: executeDelete },
     ]);
   };
 
