@@ -241,14 +241,12 @@ export const VitalsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Title Header with Add Button in one row */}
-      <PageHeader title="Vitals Log" icon={<HeartPulse color="#FFFFFF" size={20} />} />
-
-      <View style={styles.topRow}>
-        <View style={{ flex: 1 }} />
+      {/* Title Header with Add Button */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Vitals Log History</Text>
         <TouchableOpacity
           onPress={handleOpenAdd}
-          style={[styles.addBtn, { backgroundColor: theme.primary }]}
+          style={[styles.addBtn, { backgroundColor: theme.primary, minHeight: 48, minWidth: 48 }]}
           activeOpacity={0.8}
         >
           <Text style={styles.addBtnText}>+ Log Vitals</Text>
@@ -499,16 +497,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    padding: 16,
+  },
+  title: {
+    fontWeight: 'bold',
   },
   addBtn: {
     paddingHorizontal: 16,
-    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -531,11 +530,6 @@ const styles = StyleSheet.create({
   vitalCard: {
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -556,10 +550,10 @@ const styles = StyleSheet.create({
   },
   paramBox: {
     width: '48%',
-    padding: 12,
+    padding: 8,
     borderWidth: 1,
-    borderRadius: 10,
-    marginVertical: 6,
+    borderRadius: 6,
+    marginVertical: 4,
   },
   paramHeader: {
     flexDirection: 'row',
@@ -591,7 +585,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formScroll: {
-    paddingBottom: 60,
+    paddingBottom: 24,
   },
   formRow: {
     flexDirection: 'row',

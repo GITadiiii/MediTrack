@@ -198,14 +198,12 @@ export const SymptomsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <PageHeader title="Symptom Diary" icon={<Activity color="#FFFFFF" size={20} />} />
-
-      <View style={styles.topRow}>
-        <View style={{ flex: 1 }} />
+      {/* Header with log button */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Symptom Diary</Text>
         <TouchableOpacity
           onPress={handleOpenAdd}
-          style={[styles.addBtn, { backgroundColor: theme.primary }]}
-          activeOpacity={0.8}
+          style={[styles.addBtn, { backgroundColor: theme.primary, minHeight: 48, minWidth: 48 }]}
         >
           <Text style={styles.addBtnText}>+ Log Symptom</Text>
         </TouchableOpacity>
@@ -295,7 +293,7 @@ export const SymptomsScreen: React.FC = () => {
               <Text style={[styles.sliderLabel, { color: theme.text, fontSize: 16 * fontScale }]}>
                 Severity Level: {severity}/10
               </Text>
-              <View style={styles.severityRow}>
+              <View style={styles.severityGrid}>
                 {Array.from({ length: 10 }).map((_, i) => {
                   const num = i + 1;
                   const isSelected = severity === num;
@@ -304,7 +302,7 @@ export const SymptomsScreen: React.FC = () => {
                       key={num}
                       onPress={() => setSeverity(num)}
                       style={[
-                        styles.severityNumBtn,
+                        styles.severityBtn,
                         {
                           backgroundColor: isSelected
                             ? num >= 7
@@ -314,6 +312,7 @@ export const SymptomsScreen: React.FC = () => {
                               : theme.success
                             : theme.background,
                           borderColor: theme.border,
+                          borderWidth: 1,
                         },
                       ]}
                     >
@@ -389,16 +388,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    padding: 16,
+  },
+  title: {
+    fontWeight: 'bold',
   },
   addBtn: {
     paddingHorizontal: 16,
-    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -420,16 +420,17 @@ const styles = StyleSheet.create({
   },
   timelineItem: {
     flexDirection: 'row',
-    position: 'relative',
+    marginBottom: 8,
   },
   timelineTrack: {
     alignItems: 'center',
     width: 24,
+    marginRight: 8,
   },
   timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     marginTop: 18,
     zIndex: 2,
   },
@@ -440,17 +441,12 @@ const styles = StyleSheet.create({
     top: 24,
     bottom: 0,
     zIndex: 1,
+    marginTop: 6,
   },
   symptomCard: {
     flex: 1,
-    marginLeft: 12,
-    marginBottom: 16,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
+    padding: 12,
+    marginVertical: 4,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -502,25 +498,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formScroll: {
-    paddingBottom: 60,
+    paddingBottom: 24,
   },
   sliderLabel: {
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
   },
-  severityRow: {
+  severityGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  severityNumBtn: {
+  severityBtn: {
     width: 32,
     height: 32,
-    borderRadius: 6,
-    borderWidth: 1,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 4,
   },
   photoActionRow: {
     flexDirection: 'row',
