@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { HeartPulse, Calendar, Plus, Activity, Thermometer, Wind, Droplet, Scale, Pencil, Trash2 } from 'lucide-react-native';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -240,8 +241,10 @@ export const VitalsScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Title Header with Add Button */}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+        {/* Title Header with Add Button */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Vitals Log History</Text>
         <TouchableOpacity
@@ -485,6 +488,7 @@ export const VitalsScreen: React.FC = () => {
         </View>
       </Modal>
     </View>
+    </View>
   );
 };
 
@@ -521,7 +525,7 @@ const styles = StyleSheet.create({
   },
   scrollList: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   emptyContainer: {
     alignItems: 'center',

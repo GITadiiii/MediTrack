@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, TextInput, Platform, Modal, FlatList, ToastAndroid } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,6 +27,8 @@ import { IconContainer } from '../../components/IconContainer';
 import { User, AlertTriangle, Settings, Pencil, Trash2 } from 'lucide-react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') {
@@ -56,6 +59,18 @@ const calculateAge = (dobString: string): string => {
     calculatedAge--;
   }
   return Math.max(0, calculatedAge).toString();
+};
+
+const formatToDDMMYYYY = (isoDate: string): string => {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  const [year, month, day] = isoDate.split('-');
+  return `${day}-${month}-${year}`;
+};
+
+const formatToYYYYMMDD = (displayDate: string): string => {
+  if (!displayDate || !/^\d{2}-\d{2}-\d{4}$/.test(displayDate)) return displayDate;
+  const [day, month, year] = displayDate.split('-');
+  return `${year}-${month}-${day}`;
 };
 
 // Zod validation schema for Personal Information
@@ -384,6 +399,7 @@ export const ProfileScreen: React.FC = () => {
   const { themeMode, contrastMode, fontSizeScale, user, setUser, logout } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
+  const insets = useSafeAreaInsets();
 
   const {
     control,
@@ -874,38 +890,70 @@ export const ProfileScreen: React.FC = () => {
               return (
                 <View style={{ marginVertical: 8 }}>
                   <Text style={[styles.inputLabel, { color: theme.text, fontSize: 15 * fontScale }]}>Date of Birth</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowPicker(true)}
-                    style={[
-                      styles.dropdownTrigger,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: errors.dob?.message ? theme.danger : theme.border,
-                        borderWidth: errors.dob?.message || contrastMode === 'high' ? 2 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: value ? theme.text : theme.textSecondary, fontSize: 16 * fontScale }}>
-                      {value || 'DD-MM-YYYY'}
-                    </Text>
-                  </TouchableOpacity>
-                  {errors.dob?.message && (
-                    <Text style={[styles.errorText, { color: theme.danger, fontSize: 13 * fontScale }]}>
-                      {errors.dob.message}
-                    </Text>
+                  
+                  {Platform.OS === 'web' ? (
+                    <Input
+                      label=""
+                      value={formatToYYYYMMDD(value || '')}
+                      onChangeText={(text) => {
+                        const formatted = formatToDDMMYYYY(text);
+                        onChange(formatted);
+                        const computedAge = calculateAge(formatted);
+                        if (computedAge) {
+                          setValue('age', computedAge, { shouldValidate: true });
+                        }
+                      }}
+                      placeholder="YYYY-MM-DD"
+                      error={errors.dob?.message}
+                      type="date"
+                    />
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        onPress={() => setShowPicker(true)}
+                        style={[
+                          styles.dropdownTrigger,
+                          {
+                            backgroundColor: theme.card,
+                            borderColor: errors.dob?.message ? theme.danger : theme.border,
+                            borderWidth: errors.dob?.message || contrastMode === 'high' ? 2 : 1,
+                          },
+                        ]}
+                      >
+                        <Text style={{ color: value ? theme.text : theme.textSecondary, fontSize: 16 * fontScale }}>
+                          {value || 'DD-MM-YYYY'}
+                        </Text>
+                      </TouchableOpacity>
+                      {errors.dob?.message && (
+                        <Text style={[styles.errorText, { color: theme.danger, fontSize: 13 * fontScale }]}>
+                          {errors.dob.message}
+                        </Text>
+                      )}
+                      {showPicker && (
+                        <DateTimePicker
+                          value={value ? new Date(formatToYYYYMMDD(value)) : new Date(1980, 0, 1)}
+                          mode="date"
+                          display="default"
+                          maximumDate={new Date()}
+                          onChange={(event, selectedDate) => {
+                            setShowPicker(Platform.OS === 'ios');
+                            if (event.type === 'set' && selectedDate) {
+                              setShowPicker(false);
+                              const isoStr = selectedDate.toISOString().split('T')[0];
+                              const formatted = formatToDDMMYYYY(isoStr);
+                              onChange(formatted);
+                              const computedAge = calculateAge(formatted);
+                              if (computedAge) {
+                                setValue('age', computedAge, { shouldValidate: true });
+                              }
+                            } else if (event.type === 'dismissed') {
+                              setShowPicker(false);
+                            }
+                          }}
+                        />
+                      )}
+                    </>
                   )}
-                  <DatePickerModal
-                    visible={showPicker}
-                    onClose={() => setShowPicker(false)}
-                    initialValue={value || ''}
-                    onSelect={(date) => {
-                      onChange(date);
-                      const computedAge = calculateAge(date);
-                      if (computedAge) {
-                        setValue('age', computedAge, { shouldValidate: true });
-                      }
-                    }}
-                  />
                 </View>
               );
             }}
@@ -1155,23 +1203,25 @@ export const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      <PageHeader
-        title="My Profile"
-        icon={<User size={22} color="#FFFFFF" />}
-        rightElement={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Settings')}
-            style={styles.settingsHeaderBtn}
-            activeOpacity={0.7}
-          >
-            <Settings size={22} color={theme.text} />
-          </TouchableOpacity>
-        }
-      />
-      
-      {/* Header Profile Area */}
-      <View style={[styles.profileHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={{ paddingBottom: 120 }}>
+        <PageHeader
+          title="My Profile"
+          icon={<User size={22} color="#FFFFFF" />}
+          rightElement={
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settings')}
+              style={styles.settingsHeaderBtn}
+              activeOpacity={0.7}
+            >
+              <Settings size={22} color={theme.text} />
+            </TouchableOpacity>
+          }
+        />
+        
+        {/* Header Profile Area */}
+        <View style={[styles.profileHeader, { backgroundColor: theme.card, borderBottomColor: theme.border, paddingTop: Math.max(insets.top + 16, 24) }]}>
         <View style={styles.avatarCircle}>
           <User size={40} color={theme.primary} />
         </View>
@@ -1307,6 +1357,7 @@ export const ProfileScreen: React.FC = () => {
         )}
       </View>
     </ScrollView>
+    </View>
   );
 };
 

@@ -268,7 +268,7 @@ initWebVitals();
 
 // --- USER OPERATIONS ---
 
-export const registerUser = (name: string, email: string, phone: string, pin: string): UserSession | null => {
+export const registerUser = (name: string, email: string, phone: string, pin: string, dob: string = ''): UserSession | null => {
   if (Platform.OS === 'web') {
     const emailLower = email.toLowerCase().trim();
     if (webUsers.find(u => u.email === emailLower)) return null;
@@ -290,7 +290,7 @@ export const registerUser = (name: string, email: string, phone: string, pin: st
       user_id: newId,
       age: 0,
       gender: '',
-      dob: '',
+      dob: dob,
       blood_group: '',
       height: 0,
       weight: 0,
@@ -317,8 +317,8 @@ export const registerUser = (name: string, email: string, phone: string, pin: st
     if (insertId) {
       db.runSync(
         `INSERT INTO medical_profiles (user_id, age, gender, dob, blood_group, height, weight, conditions, allergies, medications, surgeries, family_history)
-         VALUES (?, 0, '', '', '', 0, 0, '[]', '[]', '[]', '[]', '[]');`,
-        [insertId]
+         VALUES (?, 0, '', ?, '', 0, 0, '[]', '[]', '[]', '[]', '[]');`,
+        [insertId, dob]
       );
       
       return {

@@ -1,21 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 import {
-  Home as HomeIcon,
   Bell,
   HeartPulse,
   Pill,
-  Activity,
+  Thermometer,
   FileText,
-  ShieldAlert,
+  PhoneCall,
   Check,
   X,
   ChevronRight,
-  ClipboardList,
-  Stethoscope,
-  FolderOpen
 } from 'lucide-react-native';
 
 import { useAppStore } from '../../store/appStore';
@@ -40,57 +38,7 @@ import { VitalBadge, VitalStatus } from '../../components/VitalBadge';
 import { IconContainer } from '../../components/IconContainer';
 import { CircularProgress } from '../../components/CircularProgress';
 
-interface QuickActionCardProps {
-  onPress: () => void;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  fontScale: number;
-}
 
-const QuickActionCard: React.FC<QuickActionCardProps> = ({ onPress, title, subtitle, icon, fontScale }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={styles.gridCellWrapper}
-    >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <LinearGradient
-          colors={['#2563EB', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gridCellGradient}
-        >
-          <View style={styles.iconCircleContainer}>
-            {icon}
-          </View>
-          <Text style={[styles.gridCellTitle, { fontSize: 16 * fontScale }]}>{title}</Text>
-          <Text style={[styles.gridCellSubtitle, { fontSize: 12 * fontScale }]}>{subtitle}</Text>
-        </LinearGradient>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
 
 interface DashboardScreenProps {
   navigation: any;
@@ -101,6 +49,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const { themeMode, contrastMode, fontSizeScale, user, notifications, setIsLocked } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [lastVital, setLastVital] = useState<VitalDB | null>(null);
@@ -295,118 +244,166 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const tempDetails = lastVital ? getTempStatus(lastVital.temperature) : null;
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Top Welcome Bar incorporating Custom Page Header style */}
-      <View style={styles.headerBar}>
-        <View style={styles.headerLeft}>
-          <IconContainer size={44} backgroundColor="#2563EB">
-            <HomeIcon color="#FFFFFF" size={22} />
-          </IconContainer>
-          <View style={styles.welcomeTextGroup}>
-            <Text style={[styles.welcomeText, { color: theme.textSecondary, fontSize: 13 * fontScale }]}>Hello,</Text>
-            <Text style={[styles.nameText, { color: theme.text, fontSize: 20 * fontScale }]}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.container, { backgroundColor: 'transparent', paddingTop: Math.max(insets.top + 16, Platform.OS === 'ios' ? 64 : 40) }]}
+      >
+        {/* Top Welcome Bar */}
+        <View style={styles.headerBar}>
+          <View>
+            <Text style={[styles.welcomeText, { color: theme.textSecondary, fontSize: 14 * fontScale }]}>Hello,</Text>
+            <Text style={[styles.nameText, { color: theme.text, fontSize: 22 * fontScale }]}>
               {user?.name.split(' ')[0]}
             </Text>
           </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('NotificationsCenter')}
+            style={[styles.notifBadge, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}
+          >
+            <Bell size={22} color={theme.text} />
+            {notifications.filter((n) => !n.isRead).length > 0 && (
+              <View style={[styles.badgeCount, { backgroundColor: theme.danger }]}>
+                <Text style={styles.badgeText}>{notifications.filter((n) => !n.isRead).length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('NotificationsCenter')}
-          style={[styles.notifBadge, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: contrastMode === 'high' ? 2 : 1 }]}
-        >
-          <Bell size={22} color={theme.text} />
-          {notifications.filter((n) => !n.isRead).length > 0 && (
-            <View style={[styles.badgeCount, { backgroundColor: theme.danger }]}>
-              <Text style={styles.badgeText}>{notifications.filter((n) => !n.isRead).length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
 
-      {/* Health Score Summary Gauge with Gradient */}
-      <LinearGradient
-        colors={['#2563EB', '#3B82F6']}
+      {/* Health Score Summary Gauge */}
+      <ExpoLinearGradient
+        colors={
+          themeMode === 'dark'
+            ? ['#3B82F6', '#1E3A8A']
+            : ['#60A5FA', '#3B82F6', '#2563EB']
+        }
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.scoreHeroCard}
-      >
-        <View style={styles.scoreRow}>
-          <View style={styles.scoreGauge}>
-            <CircularProgress progress={healthScore} size={76} strokeWidth={6} />
-          </View>
-          <View style={styles.scoreDetails}>
-            <Text style={styles.scoreHeadline}>Overall Health Status</Text>
-            <Text style={styles.scoreDesc}>
-              {healthScore >= 85
-                ? 'Excellent log consistency and medication compliance!'
-                : healthScore >= 65
-                ? 'Good, but make sure to log your medications and vitals daily.'
-                : 'Attention needed: Daily vitals or medication logging is incomplete.'}
-            </Text>
-            <View style={styles.adherenceBadge}>
-              <Text style={styles.adherenceLabel}>Medication Adherence: {adherence.toFixed(0)}%</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Redesigned Quick Action Cards */}
-      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale }]}>Quick Actions</Text>
-      <View style={styles.actionGrid}>
-        <QuickActionCard
-          onPress={() => navigation.navigate('VitalsTab')}
-          title="Log Vitals"
-          subtitle="Track your daily health metrics"
-          icon={<HeartPulse size={28} color="#2563EB" />}
-          fontScale={fontScale}
-        />
-
-        <QuickActionCard
-          onPress={() => navigation.navigate('MedicinesTab')}
-          title="Add Medicine"
-          subtitle="Manage medication schedules"
-          icon={<Pill size={28} color="#2563EB" />}
-          fontScale={fontScale}
-        />
-
-        <QuickActionCard
-          onPress={() => navigation.navigate('SymptomsTab')}
-          title="Log Symptoms"
-          subtitle="Record how you feel today"
-          icon={<Activity size={28} color="#2563EB" />}
-          fontScale={fontScale}
-        />
-
-        <QuickActionCard
-          onPress={() => navigation.navigate('ReportsTab')}
-          title="Reports"
-          subtitle="Compile and share logs"
-          icon={<FileText size={28} color="#2563EB" />}
-          fontScale={fontScale}
-        />
-      </View>
-
-      {/* EMERGENCY SOS BUTTON */}
-      <TouchableOpacity
-        onPress={handleSOS}
-        disabled={sosLoading}
+        end={{ x: 1, y: 1 }}
         style={[
-          styles.sosButton,
+          styles.scoreHeroCard,
           {
-            backgroundColor: theme.danger,
-            borderColor: contrastMode === 'high' ? '#FFFFFF' : theme.danger,
+            borderColor: contrastMode === 'high' ? '#FFFFFF' : theme.primary,
             borderWidth: contrastMode === 'high' ? 3 : 0,
           },
         ]}
       >
-        {sosLoading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <View style={styles.sosRow}>
-            <ShieldAlert size={22} color="#FFFFFF" style={styles.sosIcon} />
-            <Text style={[styles.sosButtonText, { fontSize: 18 * fontScale }]}>EMERGENCY SOS</Text>
+        <View style={[styles.scoreRow, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={styles.scoreHeadline}>Daily Score</Text>
+            <Text style={styles.scoreDesc}>
+              {healthScore >= 85
+                ? 'Excellent consistency!'
+                : healthScore >= 65
+                ? 'Good – keep logging your vitals daily.'
+                : 'Attention needed: logging is incomplete.'}
+            </Text>
+            <View style={styles.adherenceBadge}>
+              <Text style={styles.adherenceLabel}>Adherence: {adherence.toFixed(0)}%</Text>
+            </View>
           </View>
-        )}
-      </TouchableOpacity>
+          <CircularProgress
+            size={76}
+            strokeWidth={8}
+            progress={healthScore}
+            color="#FFFFFF"
+            backgroundColor="rgba(255, 255, 255, 0.25)"
+            textColor="#FFFFFF"
+          />
+        </View>
+      </ExpoLinearGradient>
+
+      {/* Quick Action Grid */}
+      <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 16 * fontScale, marginTop: 24 }]}>Quick Actions</Text>
+      <View style={styles.actionGrid}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('VitalsTab')}
+          style={[styles.squircleCell, { backgroundColor: theme.card }]}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+            <HeartPulse color="#3B82F6" size={20} />
+          </View>
+          <View style={styles.cellTextContainer}>
+            <Text style={[styles.cellHeadline, { color: theme.text, fontSize: 18 * fontScale }]}>Vitals</Text>
+            <Text style={[styles.cellSubtext, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>Log your stats</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('MedicinesTab')}
+          style={[styles.squircleCell, { backgroundColor: theme.card }]}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+            <Pill color="#A855F7" size={20} />
+          </View>
+          <View style={styles.cellTextContainer}>
+            <Text style={[styles.cellHeadline, { color: theme.text, fontSize: 18 * fontScale }]}>Medicine</Text>
+            <Text style={[styles.cellSubtext, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>Track doses</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('SymptomsTab')}
+          style={[styles.squircleCell, { backgroundColor: theme.card }]}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+            <Thermometer color="#22C55E" size={20} />
+          </View>
+          <View style={styles.cellTextContainer}>
+            <Text style={[styles.cellHeadline, { color: theme.text, fontSize: 18 * fontScale }]}>Symptoms</Text>
+            <Text style={[styles.cellSubtext, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>How are you?</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('ReportsTab')}
+          style={[styles.squircleCell, { backgroundColor: theme.card }]}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
+            <FileText color="#F97316" size={20} />
+          </View>
+          <View style={styles.cellTextContainer}>
+            <Text style={[styles.cellHeadline, { color: theme.text, fontSize: 18 * fontScale }]}>Reports</Text>
+            <Text style={[styles.cellSubtext, { color: theme.textSecondary, fontSize: 12 * fontScale }]}>View history</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* EMERGENCY SOS BUTTON */}
+      <View style={{ marginTop: 4, width: '100%', borderRadius: 28, backgroundColor: 'transparent', shadowColor: theme.danger, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 12 }}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleSOS}
+          disabled={sosLoading}
+          style={{ width: '100%', borderRadius: 28, overflow: 'hidden' }}
+        >
+          <ExpoLinearGradient
+            colors={
+              themeMode === 'dark'
+                ? ['#F87171', '#991B1B']
+                : ['#FF4D4D', '#CC0000']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.sosButton, { marginTop: 0, shadowColor: 'transparent', elevation: 0 }]}
+          >
+            {sosLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', padding: 6, borderRadius: 20, marginRight: 12 }}>
+                  <PhoneCall color="#FFFFFF" size={20} strokeWidth={2.5} />
+                </View>
+                <Text style={[styles.sosButtonText, { fontSize: 18 * fontScale, letterSpacing: 1 }]}>EMERGENCY SOS</Text>
+              </View>
+            )}
+          </ExpoLinearGradient>
+        </TouchableOpacity>
+      </View>
 
       {/* Today's Medicines Checklist */}
       <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 18 * fontScale }]}>Today's Medicines</Text>
@@ -622,13 +619,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         )}
       </Card>
     </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 16,
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 120,
   },
   loading: {
     flex: 1,
@@ -639,164 +638,141 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  welcomeTextGroup: {
-    marginLeft: 16,
+    marginTop: 0,
+    marginBottom: 24,
   },
   welcomeText: {
     fontWeight: '500',
   },
   nameText: {
-    fontWeight: 'bold',
+    fontWeight: '900',
     marginTop: 2,
   },
   notifBadge: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   badgeCount: {
     position: 'absolute',
     top: -2,
     right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   scoreHeroCard: {
-    padding: 20,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    borderWidth: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
-    marginBottom: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  scoreGauge: {
-    width: 76,
-    height: 76,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scoreDetails: {
-    flex: 1,
-    marginLeft: 16,
-  },
   scoreHeadline: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '900',
+    fontSize: 20,
+    marginBottom: 4,
   },
   scoreDesc: {
-    color: '#E0F2FE',
-    fontSize: 12,
-    marginTop: 4,
-    lineHeight: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   adherenceBadge: {
     marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignSelf: 'flex-start',
   },
   adherenceLabel: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '800',
   },
   sectionTitle: {
-    fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 12,
+    fontWeight: '800',
+    marginTop: 8,
+    marginBottom: 4,
   },
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
-  gridCellWrapper: {
-    width: '48%',
-    marginVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  gridCellGradient: {
-    borderRadius: 16,
-    paddingTop: 18,
-    paddingBottom: 18,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircleContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 12,
   },
-  gridCellTitle: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  gridCellSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-  },
-  sosButton: {
-    width: '100%',
-    height: 52,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
+  squircleCell: {
+    width: '48%',
+    aspectRatio: 1.6,
+    borderRadius: 24,
+    padding: 12,
+    marginVertical: 4,
+    justifyContent: 'space-between',
+    borderWidth: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  sosRow: {
-    flexDirection: 'row',
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'flex-end',
   },
-  sosIcon: {
-    marginRight: 8,
+  cellTextContainer: {
+    justifyContent: 'flex-end',
+  },
+  cellHeadline: {
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  cellSubtext: {
+    fontWeight: '600',
+  },
+  sosButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   sosButtonText: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontWeight: '900',
   },
   checklistCard: {
     padding: 8,

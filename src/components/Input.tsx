@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardTypeOptions } from 'react-native';
+import { View, Text, TextInput, StyleSheet, KeyboardTypeOptions, Platform } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { COLORS, getFontScale } from '../config/theme';
 
@@ -14,6 +14,7 @@ interface InputProps {
   multiline?: boolean;
   numberOfLines?: number;
   style?: any;
+  type?: string;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -27,6 +28,7 @@ export const Input: React.FC<InputProps> = ({
   multiline = false,
   numberOfLines = 1,
   style,
+  type,
 }) => {
   const { themeMode, contrastMode, fontSizeScale } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
@@ -46,28 +48,55 @@ export const Input: React.FC<InputProps> = ({
       >
         {label}
       </Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        style={[
-          styles.input,
-          {
-            color: theme.text,
-            backgroundColor: theme.card,
-            borderColor: error ? theme.danger : theme.border,
-            borderWidth: error || contrastMode === 'high' ? 2 : 1,
-            fontSize: 16 * fontScale,
-            paddingVertical: multiline ? 12 : 10,
-            minHeight: multiline ? 80 : 48,
-          },
-        ]}
-      />
+      {Platform.OS === 'web' && type === 'date' ? (
+        React.createElement('input', {
+          type: 'date',
+          value: value,
+          onChange: (e: any) => onChangeText(e.target.value),
+          style: StyleSheet.flatten([
+            styles.input,
+            {
+              color: theme.text,
+              backgroundColor: theme.card,
+              borderColor: error ? theme.danger : theme.border,
+              borderWidth: error || contrastMode === 'high' ? 2 : 1,
+              fontSize: 16 * fontScale,
+              paddingTop: multiline ? 12 : 10,
+              paddingBottom: multiline ? 12 : 10,
+              paddingLeft: 14,
+              paddingRight: 14,
+              minHeight: multiline ? 80 : 48,
+              borderRadius: 8,
+              outline: 'none',
+              fontFamily: 'inherit',
+            },
+            style
+          ]),
+        })
+      ) : (
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.textSecondary}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          style={[
+            styles.input,
+            {
+              color: theme.text,
+              backgroundColor: theme.card,
+              borderColor: error ? theme.danger : theme.border,
+              borderWidth: error || contrastMode === 'high' ? 2 : 1,
+              fontSize: 16 * fontScale,
+              paddingVertical: multiline ? 12 : 10,
+              minHeight: multiline ? 80 : 48,
+            },
+          ]}
+        />
+      )}
       {error && (
         <Text
           style={[

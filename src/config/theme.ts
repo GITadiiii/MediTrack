@@ -23,23 +23,23 @@ export interface ColorPalette {
 export const COLORS: Record<ThemeMode, Record<ContrastMode, ColorPalette>> = {
   light: {
     normal: {
-      primary: '#2563EB', // Blue
-      primaryLight: '#DBEAFE',
+      primary: '#3B82F6', // Soothing Blue
+      primaryLight: '#EFF6FF',
       success: '#10B981', // Emerald
       successLight: '#D1FAE5',
       warning: '#F59E0B', // Amber
       warningLight: '#FEF3C7',
       danger: '#EF4444', // Red
       dangerLight: '#FEE2E2',
-      background: '#F8FAFC', // Slate 50
-      card: '#FFFFFF',
-      text: '#0F172A', // Slate 900
-      textSecondary: '#64748B', // Slate 500
-      border: '#E2E8F0', // Slate 200
+      background: '#F8F9FA', // Soft off-white
+      card: '#FFFFFF', // Pure White
+      text: '#1A1D1F', // Deep Charcoal
+      textSecondary: '#6F767E', // Soft Gray
+      border: 'transparent', // Remove hard borders for premium look
     },
     high: {
-      primary: '#0000FF', // Pure Blue
-      primaryLight: '#E0E0FF',
+      primary: '#1D4ED8', // High contrast blue
+      primaryLight: '#DBEAFE',
       success: '#008000', // Pure Green
       successLight: '#E0F0E0',
       warning: '#D97706', // Strong Amber

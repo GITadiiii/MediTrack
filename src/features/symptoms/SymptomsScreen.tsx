@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Ima
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { Activity, Clock, Camera, Image as ImageIcon, Pencil, Trash2 } from 'lucide-react-native';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -197,8 +198,10 @@ export const SymptomsScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header with log button */}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+        {/* Header with log button */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Symptom Diary</Text>
         <TouchableOpacity
@@ -376,6 +379,7 @@ export const SymptomsScreen: React.FC = () => {
         </View>
       </Modal>
     </View>
+    </View>
   );
 };
 
@@ -412,7 +416,7 @@ const styles = StyleSheet.create({
   },
   scrollList: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   emptyContainer: {
     alignItems: 'center',

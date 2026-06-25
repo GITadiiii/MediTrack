@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Switch, ActivityIndicator, Animated, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { Pill, Clock, Pencil, Trash2, ChevronDown, Check, X, Calendar, BarChart2 } from 'lucide-react-native';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -430,9 +431,11 @@ export const MedicinesScreen: React.FC = () => {
   const historyGrouped = groupLogsByDate(historyLogs);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Reusable premium page header */}
-      <PageHeader title="Medicines" icon={<Pill color="#FFFFFF" size={20} />} />
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+        {/* Reusable premium page header */}
+        <PageHeader title="Medicines" icon={<Pill color="#FFFFFF" size={20} />} />
 
       {/* Dynamic Header row tab container and add routine */}
       <View style={styles.topRow}>
@@ -804,6 +807,7 @@ export const MedicinesScreen: React.FC = () => {
         </View>
       </Modal>
     </View>
+    </View>
   );
 };
 
@@ -856,7 +860,7 @@ const styles = StyleSheet.create({
   },
   scrollList: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   emptyContainer: {
     alignItems: 'center',

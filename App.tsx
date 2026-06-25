@@ -4,6 +4,9 @@ import { View, ActivityIndicator, StyleSheet, Text, Platform, Alert } from 'reac
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { Home, Activity, Pill, Thermometer, FileText, UserIcon } from 'lucide-react-native';
 
 // State & Theme
 import { useAppStore } from './src/store/appStore';
@@ -12,7 +15,6 @@ import { initDatabase } from './src/database/sqliteService';
 import { checkUserExists, logMedicationDose } from './src/database/dbHelpers';
 import { requestNotificationPermissions } from './src/services/notificationService';
 import * as Notifications from 'expo-notifications';
-import { Home, HeartPulse, Pill, Activity, FileText, User } from 'lucide-react-native';
 
 // Screens
 import { LoginScreen } from './src/features/auth/LoginScreen';
@@ -38,23 +40,51 @@ function TabNavigator() {
   const { themeMode, contrastMode, fontSizeScale } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false, // Use custom premium PageHeader inside screens
-        tabBarStyle: {
+        headerStyle: {
           backgroundColor: theme.card,
-          borderTopWidth: contrastMode === 'high' ? 2 : 1,
-          borderTopColor: theme.border,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
+          borderBottomWidth: contrastMode === 'high' ? 2 : 1,
+          borderBottomColor: theme.border,
         },
+        headerTintColor: theme.text,
+        headerTitleStyle: {
+          fontWeight: '900',
+          fontSize: 18 * fontScale,
+        },
+        tabBarLabelPosition: 'below-icon',
+        tabBarStyle: {
+          position: 'absolute',
+          backgroundColor: themeMode === 'dark' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+          borderTopWidth: 0,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          height: 64,
+          paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+          paddingTop: 8,
+          borderRadius: 32,
+          marginHorizontal: 16,
+          marginBottom: Platform.OS === 'ios' ? 24 : 16 + Math.max(0, insets.bottom - 8),
+          overflow: 'hidden',
+        },
+        tabBarBackground: () => (
+          <BlurView 
+            intensity={themeMode === 'dark' ? 60 : 80} 
+            tint={themeMode === 'dark' ? 'dark' : 'light'} 
+            style={StyleSheet.absoluteFill} 
+          />
+        ),
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarLabelStyle: {
-          fontSize: 12 * fontScale,
+          fontSize: 11 * fontScale,
           fontWeight: 'bold',
         },
       }}
@@ -65,7 +95,7 @@ function TabNavigator() {
         options={{
           title: 'Home',
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size || 20} />,
+          tabBarIcon: ({ color, size }) => <Home color={color} size={size || 24} />,
         }}
       />
       <Tab.Screen
@@ -74,16 +104,16 @@ function TabNavigator() {
         options={{
           title: 'Vitals',
           tabBarLabel: 'Vitals',
-          tabBarIcon: ({ color, size }) => <HeartPulse color={color} size={size || 20} />,
+          tabBarIcon: ({ color, size }) => <Activity color={color} size={size || 24} />,
         }}
       />
       <Tab.Screen
         name="MedicinesTab"
         component={MedicinesScreen}
         options={{
-          title: 'Medicines',
-          tabBarLabel: 'Medicines',
-          tabBarIcon: ({ color, size }) => <Pill color={color} size={size || 20} />,
+          title: 'Meds',
+          tabBarLabel: 'Meds',
+          tabBarIcon: ({ color, size }) => <Pill color={color} size={size || 24} />,
         }}
       />
       <Tab.Screen
@@ -92,7 +122,7 @@ function TabNavigator() {
         options={{
           title: 'Symptoms',
           tabBarLabel: 'Symptoms',
-          tabBarIcon: ({ color, size }) => <Activity color={color} size={size || 20} />,
+          tabBarIcon: ({ color, size }) => <Thermometer color={color} size={size || 24} />,
         }}
       />
       <Tab.Screen
@@ -101,7 +131,7 @@ function TabNavigator() {
         options={{
           title: 'Reports',
           tabBarLabel: 'Reports',
-          tabBarIcon: ({ color, size }) => <FileText color={color} size={size || 20} />,
+          tabBarIcon: ({ color, size }) => <FileText color={color} size={size || 24} />,
         }}
       />
       <Tab.Screen
@@ -110,7 +140,7 @@ function TabNavigator() {
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size }) => <User color={color} size={size || 20} />,
+          tabBarIcon: ({ color, size }) => <UserIcon color={color} size={size || 24} />,
         }}
       />
     </Tab.Navigator>
@@ -207,72 +237,74 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.card,
-          },
-          headerTintColor: theme.text,
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          contentStyle: {
-            backgroundColor: theme.background,
-          },
-        }}
-      >
-        {user ? (
-          // Authenticated App Flow
-          <>
-            <Stack.Screen
-              name="MainApp"
-              component={TabNavigator}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="NotificationsCenter"
-              component={NotificationsCenterScreen}
-              options={{ title: 'Notifications Center' }}
-            />
-            <Stack.Screen
-              name="Search"
-              component={SearchScreen}
-              options={{ title: 'Global Search Cabinet' }}
-            />
-            <Stack.Screen
-              name="Settings"
-              component={SettingsScreen}
-              options={{ title: 'Settings', headerShown: false }}
-            />
-            <Stack.Screen
-              name="DoctorVisits"
-              component={DoctorVisitsScreen}
-              options={{ title: 'Doctor Visits', headerShown: false }}
-            />
-            <Stack.Screen
-              name="Prescriptions"
-              component={PrescriptionsScreen}
-              options={{ title: 'Prescriptions', headerShown: false }}
-            />
-          </>
-        ) : (
-          // Unauthenticated Auth Flow
-          <>
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Register"
-              component={RegisterScreen}
-              options={{ headerShown: false }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: theme.card,
+            },
+            headerTintColor: theme.text,
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+            contentStyle: {
+              backgroundColor: theme.background,
+            },
+          }}
+        >
+          {user ? (
+            // Authenticated App Flow
+            <>
+              <Stack.Screen
+                name="MainApp"
+                component={TabNavigator}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="NotificationsCenter"
+                component={NotificationsCenterScreen}
+                options={{ title: 'Notifications Center' }}
+              />
+              <Stack.Screen
+                name="Search"
+                component={SearchScreen}
+                options={{ title: 'Global Search Cabinet' }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: 'Settings', headerShown: false }}
+              />
+              <Stack.Screen
+                name="DoctorVisits"
+                component={DoctorVisitsScreen}
+                options={{ title: 'Doctor Visits', headerShown: false }}
+              />
+              <Stack.Screen
+                name="Prescriptions"
+                component={PrescriptionsScreen}
+                options={{ title: 'Prescriptions', headerShown: false }}
+              />
+            </>
+          ) : (
+            // Unauthenticated Auth Flow
+            <>
+              <Stack.Screen
+                name="Login"
+                component={LoginScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Register"
+                component={RegisterScreen}
+                options={{ headerShown: false }}
+              />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

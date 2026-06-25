@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
+import { BackgroundGrid } from '../../components/BackgroundGrid';
 import {
   getMedicalProfile,
   getEmergencyContact,
@@ -239,8 +240,10 @@ export const ReportsScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      <PageHeader title="Clinical PDF Reports" icon={<FileText size={22} color="#FFFFFF" />} />
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <BackgroundGrid />
+      <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={{ paddingBottom: 120 }}>
+        <PageHeader title="Clinical PDF Reports" icon={<FileText size={22} color="#FFFFFF" />} />
       
       <View style={{ paddingHorizontal: 16 }}>
         <Text style={[styles.subtitle, { color: theme.textSecondary, fontSize: 15 * fontScale }]}>
@@ -408,6 +411,7 @@ export const ReportsScreen: React.FC = () => {
         </Card>
       </View>
     </ScrollView>
+    </View>
   );
 };
 
