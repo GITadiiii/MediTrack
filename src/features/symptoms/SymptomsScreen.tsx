@@ -396,6 +396,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
+    flex: 1,
+    marginRight: 8,
   },
   addBtn: {
     paddingHorizontal: 16,
