@@ -98,7 +98,7 @@ const personalSchema = z.object({
   ),
   height: z.string().optional().or(z.literal('')).refine(
     (val) => {
-      if (!val) return true;
+      if (!val || val === '0' || val === '0.0') return true;
       const num = parseFloat(val);
       return !isNaN(num) && num >= 50 && num <= 300;
     },
@@ -106,7 +106,7 @@ const personalSchema = z.object({
   ),
   weight: z.string().optional().or(z.literal('')).refine(
     (val) => {
-      if (!val) return true;
+      if (!val || val === '0' || val === '0.0') return true;
       const num = parseFloat(val);
       return !isNaN(num) && num >= 1 && num <= 500;
     },
@@ -467,7 +467,14 @@ export const ProfileScreen: React.FC = () => {
       setName(user.name || '');
       setAge(medProfile.age && medProfile.age !== 0 ? medProfile.age.toString() : '');
       setGender(medProfile.gender || '');
-      setDob(medProfile.dob || '');
+      
+      let formattedDob = medProfile.dob || '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(formattedDob)) {
+        const [year, month, day] = formattedDob.split('-');
+        formattedDob = `${day}-${month}-${year}`;
+      }
+      setDob(formattedDob);
+
       setBloodGroup(medProfile.blood_group || '');
       setHeight(medProfile.height && medProfile.height !== 0 ? medProfile.height.toString() : '');
       setWeight(medProfile.weight && medProfile.weight !== 0 ? medProfile.weight.toString() : '');
