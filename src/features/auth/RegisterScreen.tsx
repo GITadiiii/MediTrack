@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import { Card } from '../../components/Card';
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
+  dob: z.string().min(1, 'Date of Birth is required'),
   phone: z.string().min(8, 'Phone number must be at least 8 digits'),
   pin: z.string().length(4, 'PIN must be exactly 4 digits').regex(/^\d+$/, 'PIN must contain only numbers'),
   confirmPin: z.string().length(4, 'PIN must be exactly 4 digits'),
@@ -31,6 +33,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const { themeMode, contrastMode, fontSizeScale, setUser, setHasPin, setIsLocked } = useAppStore();
   const theme = COLORS[themeMode][contrastMode];
   const fontScale = getFontScale(fontSizeScale);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const {
     control,
@@ -41,6 +44,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
     defaultValues: {
       name: '',
       email: '',
+      dob: '',
       phone: '',
       pin: '',
       confirmPin: '',
@@ -49,7 +53,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   });
 
   const onSubmit = (data: RegisterFormData) => {
-    const userSession = registerUser(data.name, data.email, data.phone, data.pin);
+    const userSession = registerUser(data.name, data.email, data.phone, data.pin, data.dob);
     if (userSession) {
       setUser(userSession);
       setHasPin(true);
@@ -102,6 +106,55 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 keyboardType="email-address"
                 error={errors.email?.message}
               />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="dob"
+            render={({ field: { onChange, value } }) => (
+              Platform.OS === 'web' ? (
+                <Input
+                  label="Date of Birth"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="YYYY-MM-DD"
+                  error={errors.dob?.message}
+                  type="date"
+                />
+              ) : (
+                <>
+                  <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                    <View pointerEvents="none">
+                      <Input
+                        label="Date of Birth"
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="YYYY-MM-DD"
+                        error={errors.dob?.message}
+                      />
+                    </View>
+                  </TouchableOpacity>
+
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={value ? new Date(value) : new Date(1980, 0, 1)}
+                      mode="date"
+                      display="default"
+                      maximumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (event.type === 'set' && selectedDate) {
+                          setShowDatePicker(false);
+                          onChange(selectedDate.toISOString().split('T')[0]);
+                        } else if (event.type === 'dismissed') {
+                          setShowDatePicker(false);
+                        }
+                      }}
+                    />
+                  )}
+                </>
+              )
             )}
           />
 

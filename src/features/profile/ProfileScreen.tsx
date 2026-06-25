@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import { getMedicalProfile, updateMedicalProfile, getEmergencyContact, saveEmergencyContact, MedicalProfileDB } from '../../database/dbHelpers';
@@ -39,6 +40,8 @@ export const ProfileScreen: React.FC = () => {
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyRelation, setEmergencyRelation] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     loadProfileData();
@@ -186,7 +189,37 @@ export const ProfileScreen: React.FC = () => {
           <Input label="Full Name" value={name} onChangeText={setName} placeholder="John Doe" />
           <Input label="Age" value={age} onChangeText={setAge} placeholder="e.g. 65" keyboardType="number-pad" />
           <Input label="Gender" value={gender} onChangeText={setGender} placeholder="Male / Female / Other" />
-          <Input label="Date of Birth" value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" />
+          
+          {Platform.OS === 'web' ? (
+            <Input label="Date of Birth" value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" type="date" />
+          ) : (
+            <>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                <View pointerEvents="none">
+                  <Input label="Date of Birth" value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" />
+                </View>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={dob ? new Date(dob) : new Date(1980, 0, 1)}
+                  mode="date"
+                  display="default"
+                  maximumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (event.type === 'set' && selectedDate) {
+                      setShowDatePicker(false);
+                      setDob(selectedDate.toISOString().split('T')[0]);
+                    } else if (event.type === 'dismissed') {
+                      setShowDatePicker(false);
+                    }
+                  }}
+                />
+              )}
+            </>
+          )}
+
           <Input label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} placeholder="e.g. A-Positive" />
           <Input label="Height (cm)" value={height} onChangeText={setHeight} placeholder="e.g. 175" keyboardType="decimal-pad" />
           <Input label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="e.g. 80.5" keyboardType="decimal-pad" />

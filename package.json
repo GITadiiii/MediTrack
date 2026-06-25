@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~56.0.12",
     "@hookform/resolvers": "^3.3.4",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
