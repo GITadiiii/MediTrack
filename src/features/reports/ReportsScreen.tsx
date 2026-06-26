@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, Touchable
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
 import { BackgroundGrid } from '../../components/BackgroundGrid';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getMedicalProfile,
   getEmergencyContact,
@@ -239,10 +240,12 @@ export const ReportsScreen: React.FC = () => {
     );
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <BackgroundGrid />
-      <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView style={[styles.container, { backgroundColor: 'transparent', paddingTop: Math.max(insets.top + 8, 48) }]} contentContainerStyle={{ paddingBottom: 120 }}>
         <PageHeader title="Clinical PDF Reports" icon={<FileText size={22} color="#FFFFFF" />} />
       
       <View style={{ paddingHorizontal: 16 }}>

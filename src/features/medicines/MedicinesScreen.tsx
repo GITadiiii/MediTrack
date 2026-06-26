@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Swi
 import { useIsFocused } from '@react-navigation/native';
 import { Pill, Clock, Pencil, Trash2, ChevronDown, Check, X, Calendar, BarChart2 } from 'lucide-react-native';
 import { BackgroundGrid } from '../../components/BackgroundGrid';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -429,11 +430,12 @@ export const MedicinesScreen: React.FC = () => {
 
 
   const historyGrouped = groupLogsByDate(historyLogs);
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <BackgroundGrid />
-      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent', paddingTop: Math.max(insets.top + 8, 48) }]}>
         {/* Reusable premium page header */}
         <PageHeader title="Medicines" icon={<Pill color="#FFFFFF" size={20} />} />
 
