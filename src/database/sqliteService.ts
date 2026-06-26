@@ -173,10 +173,11 @@ export const initDatabase = () => {
   runMigrations(db);
 
   // Seed default data if users table is empty
-  const count = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM users;');
-  if (count && count.count === 0) {
-    seedDefaultData(db);
-  }
+  // (Disabled to start with a clean slate)
+  // const count = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM users;');
+  // if (count && count.count === 0) {
+  //   seedDefaultData(db);
+  // }
 };
 
 const runMigrations = (db: SQLite.SQLiteDatabase) => {

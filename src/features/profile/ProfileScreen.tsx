@@ -1277,41 +1277,44 @@ export const ProfileScreen: React.FC = () => {
           {isEditing ? (
             <>
               {activeSection === 'personal' ? (
-                <Button
-                  title="Save Updates"
-                  onPress={handleSubmit(onSubmitPersonal)}
-                  variant="primary"
-                  style={{ flex: 1, marginRight: 8 }}
-                  disabled={!isValid}
-                />
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Button
+                    title="Save Updates"
+                    onPress={handleSubmit(onSubmitPersonal)}
+                    variant="primary"
+                    disabled={!isValid}
+                  />
+                </View>
               ) : (
-                <Button
-                  title="Save Updates"
-                  onPress={handleSave}
-                  variant="primary"
-                  style={{ flex: 1, marginRight: 8 }}
-                />
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Button
+                    title="Save Updates"
+                    onPress={handleSave}
+                    variant="primary"
+                  />
+                </View>
               )}
-              <Button
-                title="Cancel"
-                onPress={() => {
-                  setIsEditing(false);
-                  setEditingContactId(null);
-                  if (activeSection === 'personal') {
-                    reset({
-                      name: name,
-                      age: age,
-                      gender: gender,
-                      dob: dob,
-                      bloodGroup: bloodGroup,
-                      height: height,
-                      weight: weight,
-                    });
-                  }
-                }}
-                variant="secondary"
-                style={{ flex: 1 }}
-              />
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Cancel"
+                  onPress={() => {
+                    setIsEditing(false);
+                    setEditingContactId(null);
+                    if (activeSection === 'personal') {
+                      reset({
+                        name: name,
+                        age: age,
+                        gender: gender,
+                        dob: dob,
+                        bloodGroup: bloodGroup,
+                        height: height,
+                        weight: weight,
+                      });
+                    }
+                  }}
+                  variant="secondary"
+                />
+              </View>
             </>
           ) : (
             activeSection !== 'emergency' ? (
