@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { Activity, Clock, Camera, Image as ImageIcon, Pencil, Trash2 } from 'lucide-react-native';
 import { BackgroundGrid } from '../../components/BackgroundGrid';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -40,6 +41,8 @@ export const SymptomsScreen: React.FC = () => {
   const [severity, setSeverity] = useState<number>(5);
   const [notes, setNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (isFocused && user) {
@@ -200,7 +203,7 @@ export const SymptomsScreen: React.FC = () => {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <BackgroundGrid />
-      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent', paddingTop: Math.max(insets.top + 8, 48) }]}>
         {/* Header with log button */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Symptom Diary</Text>

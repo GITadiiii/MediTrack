@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Modal, Alert, TouchableOpacity, Act
 import { useIsFocused } from '@react-navigation/native';
 import { HeartPulse, Calendar, Plus, Activity, Thermometer, Wind, Droplet, Scale, Pencil, Trash2 } from 'lucide-react-native';
 import { BackgroundGrid } from '../../components/BackgroundGrid';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppStore } from '../../store/appStore';
 import { COLORS, getFontScale } from '../../config/theme';
@@ -49,6 +50,8 @@ export const VitalsScreen: React.FC = () => {
   const [weight, setWeight] = useState('');
   const [spo2, setSpo2] = useState('');
   const [heartRate, setHeartRate] = useState('');
+
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (isFocused && user) {
@@ -243,7 +246,8 @@ export const VitalsScreen: React.FC = () => {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <BackgroundGrid />
-      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent', paddingTop: Math.max(insets.top + 8, 48) }]}>
+        <ScrollView style={{ flex: 1 }}>
         {/* Title Header with Add Button */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text, fontSize: 22 * fontScale }]}>Vitals Log History</Text>
@@ -487,7 +491,8 @@ export const VitalsScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </View>
+      </ScrollView>
+      </View>
     </View>
   );
 };
