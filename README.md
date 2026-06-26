@@ -23,7 +23,7 @@
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Key Features](#-key-features)
@@ -40,7 +40,7 @@
 
 ---
 
-## 🌟 Overview
+##  Overview
 
 MediTrack solves a fundamental problem in personal healthcare: **fragmented, inaccessible health data**. Most health apps either require internet connectivity, lock data behind cloud subscriptions, or fail to work across all platforms.
 
@@ -48,34 +48,34 @@ MediTrack is built differently:
 
 | Principle | Implementation |
 |-----------|----------------|
-| 🔒 **Privacy-First** | All data lives on the user's device via SQLite — nothing ever leaves |
-| 📴 **Offline-First** | Fully functional with zero network connectivity |
-| 🌐 **Cross-Platform** | A single codebase for Android, iOS, and Web |
-| ♿ **Accessible** | High-contrast mode, 3 font-size scales, large tap targets |
-| 🚨 **Emergency-Ready** | One-tap SOS with live GPS and medical profile sharing |
+|  **Privacy-First** | All data lives on the user's device via SQLite — nothing ever leaves |
+|  **Offline-First** | Fully functional with zero network connectivity |
+|  **Cross-Platform** | A single codebase for Android, iOS, and Web |
+|  **Accessible** | High-contrast mode, 3 font-size scales, large tap targets |
+|  **Emergency-Ready** | One-tap SOS with live GPS and medical profile sharing |
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 | Feature | Description |
 |---------|-------------|
-| 🔐 **Biometric Auth** | Email/password login with fingerprint & Face ID + PIN lock |
-| 📊 **Daily Health Score** | Dynamic 0–100 score based on vitals logging and medication adherence |
-| 💊 **Medication Tracker** | Schedule meds with times; log TAKEN / SKIPPED per dose with reminders |
-| 📈 **Vitals Monitoring** | Track BP, blood sugar, SpO₂, heart rate, temperature & weight with trend charts |
-| 🤒 **Symptom Logger** | Log symptoms with a severity slider (1–10) and timestamped notes |
-| 🚨 **Emergency SOS** | One-tap share of name, blood group, conditions + live GPS coordinates |
-| 📄 **PDF Reports** | Auto-generate and share a comprehensive health summary PDF |
-| 🌙 **Theme System** | Light / Dark mode + High Contrast + 3 responsive font-size scales |
-| 🔔 **Smart Notifications** | Local push reminders for medications and upcoming doctor visits |
-| 📷 **Prescription Manager** | Camera / gallery upload for prescription image storage |
-| 🏥 **Doctor Visits** | Log appointments, notes, and track next visit dates |
-| 🌐 **Web Support** | Progressive Web App mode with graceful mock-DB fallback |
+|  **Biometric Auth** | Email/password login with fingerprint & Face ID + PIN lock |
+|  **Daily Health Score** | Dynamic 0–100 score based on vitals logging and medication adherence |
+|  **Medication Tracker** | Schedule meds with times; log TAKEN / SKIPPED per dose with reminders |
+|  **Vitals Monitoring** | Track BP, blood sugar, SpO₂, heart rate, temperature & weight with trend charts |
+|  **Symptom Logger** | Log symptoms with a severity slider (1–10) and timestamped notes |
+|  **Emergency SOS** | One-tap share of name, blood group, conditions + live GPS coordinates |
+|  **PDF Reports** | Auto-generate and share a comprehensive health summary PDF |
+|  **Theme System** | Light / Dark mode + High Contrast + 3 responsive font-size scales |
+|  **Smart Notifications** | Local push reminders for medications and upcoming doctor visits |
+|  **Prescription Manager** | Camera / gallery upload for prescription image storage |
+|  **Doctor Visits** | Log appointments, notes, and track next visit dates |
+|  **Web Support** | Progressive Web App mode with graceful mock-DB fallback |
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Core Framework
 
@@ -105,36 +105,36 @@ MediTrack is built differently:
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 MediTrack follows a **layered, feature-based architecture** with a strict separation of concerns — each layer only communicates with the layer directly below it.
 
 ```mermaid
 graph TB
-    subgraph CLIENT["📱 Client (React Native + Expo)"]
+    subgraph CLIENT[" Client (React Native + Expo)"]
         direction TB
 
-        subgraph PRES["🎨 Presentation Layer"]
+        subgraph PRES[" Presentation Layer"]
             UI["Shared Components\n(Button, Card, Input,\nLineChart, CircularProgress,\nVitalBadge, PageHeader)"]
         end
 
-        subgraph NAV["🧭 Navigation Layer"]
+        subgraph NAV[" Navigation Layer"]
             ROOT["Root Stack Navigator"]
             ROOT --> AUTH_SCREENS["Auth Screens\n(Login / Register)"]
             ROOT --> TABS["Bottom Tab Navigator"]
-            TABS --> D["🏠 Dashboard"]
-            TABS --> M["💊 Medicines"]
-            TABS --> V["📊 Vitals"]
-            TABS --> S["🤒 Symptoms"]
-            TABS --> R["📄 Reports"]
-            TABS --> P["👤 Profile"]
+            TABS --> D[" Dashboard"]
+            TABS --> M[" Medicines"]
+            TABS --> V[" Vitals"]
+            TABS --> S[" Symptoms"]
+            TABS --> R[" Reports"]
+            TABS --> P[" Profile"]
         end
 
-        subgraph STATE["⚡ State Management (Zustand)"]
+        subgraph STATE[" State Management (Zustand)"]
             STORE["appStore.ts\n─────────────────\n• User session\n• Theme & contrast\n• Font size scale\n• Biometric settings\n• Notification prefs\n• App lock state"]
         end
 
-        subgraph FEATURES["📦 Feature Modules"]
+        subgraph FEATURES[" Feature Modules"]
             F1["auth/"]
             F2["dashboard/"]
             F3["vitals/"]
@@ -147,21 +147,21 @@ graph TB
             F10["prescriptions/"]
         end
 
-        subgraph SERVICES["⚙️ Services Layer"]
+        subgraph SERVICES[" Services Layer"]
             SVC1["locationService\n(GPS + Maps URL)"]
             SVC2["notificationService\n(Local push scheduling)"]
             SVC3["pdfService\n(HTML → PDF, ~30KB)"]
             SVC4["fileService\n(Read/write helpers)"]
         end
 
-        subgraph DATA["🗄️ Data Layer"]
+        subgraph DATA[" Data Layer"]
             INIT["sqliteService.ts\n(Schema init & migrations)"]
             CRUD["dbHelpers.ts\n(All CRUD operations, ~40KB)"]
             WEB["sqliteService.web.ts\n(Web mock fallback)"]
             INIT --> CRUD
         end
 
-        subgraph NATIVE["📲 Native APIs (Expo)"]
+        subgraph NATIVE[" Native APIs (Expo)"]
             N1["expo-local-authentication\n(Fingerprint / Face ID)"]
             N2["expo-notifications\n(Push reminders)"]
             N3["expo-location\n(GPS / SOS)"]
@@ -170,7 +170,7 @@ graph TB
         end
     end
 
-    subgraph STORAGE["💾 On-Device Storage"]
+    subgraph STORAGE[" On-Device Storage"]
         DB[("SQLite Database\n(Fully local, no cloud)")]
     end
 
@@ -201,7 +201,7 @@ graph TB
 
 ---
 
-## 🗄️ Database Schema
+##  Database Schema
 
 MediTrack uses a **normalized SQLite schema** with 9 tables. All records are user-scoped via `user_id` foreign keys.
 
@@ -325,7 +325,7 @@ erDiagram
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 meditrack/
@@ -384,7 +384,7 @@ meditrack/
 
 ---
 
-## 🧭 App Navigation Flow
+##  App Navigation Flow
 
 ```mermaid
 flowchart TD
@@ -397,14 +397,14 @@ flowchart TD
     LOGIN --> MAIN
     REGISTER --> LOGIN
 
-    MAIN["🏠 Main App\n(Bottom Tab Navigator)"]
+    MAIN[" Main App\n(Bottom Tab Navigator)"]
 
-    MAIN --> TAB1["🏠 Dashboard Tab"]
-    MAIN --> TAB2["💊 Medicines Tab"]
-    MAIN --> TAB3["📊 Vitals Tab"]
-    MAIN --> TAB4["🤒 Symptoms Tab"]
-    MAIN --> TAB5["📄 Reports Tab"]
-    MAIN --> TAB6["👤 Profile Tab"]
+    MAIN --> TAB1[" Dashboard Tab"]
+    MAIN --> TAB2[" Medicines Tab"]
+    MAIN --> TAB3[" Vitals Tab"]
+    MAIN --> TAB4[" Symptoms Tab"]
+    MAIN --> TAB5[" Reports Tab"]
+    MAIN --> TAB6[" Profile Tab"]
 
     TAB1 --> D1[DashboardScreen\nHealth score, SOS, quick actions]
     TAB1 --> D2[NotificationsCenterScreen\nIn-app notification log]
@@ -430,7 +430,7 @@ flowchart TD
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -461,7 +461,7 @@ No `.env` file is required. MediTrack has **no external APIs, no backend, and no
 
 ---
 
-## 📦 Build & Deployment
+##  Build & Deployment
 
 | Target | Command | Output |
 |--------|---------|--------|
@@ -477,7 +477,7 @@ No `.env` file is required. MediTrack has **no external APIs, no backend, and no
 
 ---
 
-## 🔭 Future Innovations
+##  Future Innovations
 
 MediTrack's offline-first foundation is designed to scale. The following roadmap outlines planned innovations across intelligence, connectivity, and clinical integration.
 
@@ -539,7 +539,7 @@ gantt
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions, issues, and feature requests are welcome!
 
